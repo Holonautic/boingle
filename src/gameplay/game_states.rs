@@ -15,7 +15,9 @@ pub enum AppState {
 #[states(scoped_entities)]
 pub enum LevelState {
     #[default]
+    LevelStart,
     PlaceWidget,
     ShootBall,
-    BallBouncing
+    BallBouncing,
+    LevelOver,
 }

@@ -12,3 +12,6 @@ impl OnGadgetCardSelected {
         Self { gadget_card }
     }
 }
+
+#[derive(Event, Reflect, Debug)]
+pub struct OnCoinCollected;

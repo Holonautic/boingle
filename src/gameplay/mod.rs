@@ -1,12 +1,11 @@
 use bevy::prelude::*;
 use crate::gameplay::game_states::{AppState, LevelState};
 use crate::gameplay::systems::*;
-use crate::main_setup;
 
 pub mod components;
 mod systems;
 pub mod game_states;
-mod events;
+pub mod events;
 
 pub struct GameplayPlugin;
 
@@ -19,10 +18,17 @@ impl Plugin for GameplayPlugin {
         app.add_systems(Update, remove_all_placed_gadgets_system);
         app.add_systems(Update, ball_left_play_area_system.run_if(in_state(LevelState::BallBouncing)));
         app.add_systems(FixedPostUpdate, clamp_max_ball_velocity);
+        app.add_systems(Update, update_visual_based_on_gadget_activation);
 
         app.add_systems(OnEnter(LevelState::PlaceWidget), show_widget_selection);
+        app.add_systems(OnExit(LevelState::PlaceWidget), reactivate_gadgets);
+        app.add_systems(OnEnter(LevelState::LevelStart), restarting_level);
+
 
         app.add_observer(on_gadget_card_selected);
+        app.add_observer(on_coin_collected);
+
+
 
     }
 }

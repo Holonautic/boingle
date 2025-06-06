@@ -2,22 +2,18 @@ pub mod components;
 pub mod resources;
 mod systems;
 
-use crate::gadgets::components::{Gadget, GadgetType};
-use crate::gadgets::resources::GadgetImageResource;
+use crate::gadgets::components::{CoinBumperGadget, CollectibleType, Gadget, GadgetType};
+use crate::gadgets::resources::GameResources;
 use crate::gameplay::components::{BallSpawnPoint, HelpTextFor, HelperText};
 use crate::{DestroyOnHot, PlayerBall};
-use avian2d::prelude::{
-    Collider, CollisionEventsEnabled, LinearVelocity, OnCollisionStart, Restitution, RigidBody,
-};
+use avian2d::prelude::*;
 use bevy::asset::AssetServer;
 use bevy::color::palettes::tailwind;
-use bevy::ecs::error::info;
-use bevy::ecs::system::command::trigger;
 use bevy::prelude::*;
 use bevy_bundled_observers::observers;
-use std::ops::Mul;
+use crate::gadgets::systems::*;
 
-pub fn large_block_bundle(gadget_image_resource: &GadgetImageResource) -> impl Bundle {
+pub fn large_block_bundle(gadget_image_resource: &GameResources) -> impl Bundle {
     let image_handle = gadget_image_resource
         .gadget_images
         .get(&GadgetType::LargeBlock)
@@ -33,34 +29,9 @@ pub fn large_block_bundle(gadget_image_resource: &GadgetImageResource) -> impl B
     )
 }
 
-pub fn bumper_bundle(gadget_image_resource: &GadgetImageResource) -> impl Bundle {
-    let image_handle = gadget_image_resource
-        .gadget_images
-        .get(&GadgetType::Bumper)
-        .unwrap()
-        .clone();
-    (
-        Name::new("bumper"),
-        Transform::from_scale(Vec3::splat(1.0)),
-        Sprite::from_image(image_handle),
-        RigidBody::Static,
-        Restitution::new(0.9),
-        Collider::circle(35.0),
-        CollisionEventsEnabled,
-        observers![|trigger: Trigger<OnCollisionStart>,
-                    mut q_ball: Query<&mut LinearVelocity, With<PlayerBall>>,
-                    q_name: Query<&Name>| {
-            let Ok(mut velocity) = q_ball.get_mut(trigger.collider) else {
-                return;
-            };
 
-            velocity.0 *= 1.5;
 
-        }],
-    )
-}
-
-pub fn coin_bumper_bundle(gadget_image_resource: &GadgetImageResource) -> impl Bundle {
+pub fn coin_bumper_bundle(gadget_image_resource: &GameResources) -> impl Bundle {
     let image_handle = gadget_image_resource
         .gadget_images
         .get(&GadgetType::CoinBumper)
@@ -68,21 +39,19 @@ pub fn coin_bumper_bundle(gadget_image_resource: &GadgetImageResource) -> impl B
         .clone();
     (
         GadgetType::CoinBumper,
-        Gadget {
-            activations_left: 1,
-            activations: 1,
-        },
+        Gadget::new(1),
+        CoinBumperGadget::new(3),
         Name::new("coin_bumper"),
-        Transform::from_scale(Vec3::splat(0.5)),
+        Transform::from_scale(Vec3::splat(0.3)),
         Sprite::from_image(image_handle),
         RigidBody::Static,
         Restitution::new(2.0),
-        Collider::circle(35.0),
-        observers![(|trigger: Trigger<OnCollisionStart>| {
-
-        }) ],
+        Collider::circle(80.0),
+        CollisionEventsEnabled,
+        observers![(on_coins_spawn_from_bumper)],
     )
 }
+
 
 pub fn ball_spawn_point(
     meshes: &mut Assets<Mesh>,

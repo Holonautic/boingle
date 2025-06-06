@@ -1,8 +1,9 @@
 mod gadgets;
 mod gameplay;
 mod general;
+mod game_ui;
 
-use crate::gadgets::resources::GadgetImageResource;
+use crate::gadgets::resources::GameResources;
 use crate::gadgets::*;
 use crate::gameplay::GameplayPlugin;
 use crate::gameplay::components::*;
@@ -20,6 +21,7 @@ use bevy_simple_subsecond_system::prelude::*;
 use bevy_vector_shapes::Shape2dPlugin;
 use gameplay::game_states::*;
 use std::f32::consts::TAU;
+use crate::game_ui::GameUiPlugin;
 
 fn main() -> AppExit {
     let mut app = App::new();
@@ -28,19 +30,20 @@ fn main() -> AppExit {
     app.add_plugins(EguiPlugin {
         enable_multipass_for_primary_context: true,
     });
-    app.add_plugins(WorldInspectorPlugin::new());
     app.add_plugins(SimpleSubsecondPlugin::default());
     app.add_plugins(EntropyPlugin::<WyRand>::default());
     app.add_plugins(Shape2dPlugin::default());
     app.add_plugins(PhysicsPlugins::default());
     app.add_plugins(PhysicsPickingPlugin::default());
-    app.add_plugins(PhysicsDebugPlugin::default());
+    // app.add_plugins(PhysicsDebugPlugin::default());
+    // app.add_plugins(WorldInspectorPlugin::new());
 
     app.insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0));
-    app.insert_resource(GadgetImageResource::default());
+    app.insert_resource(GameResources::default());
 
     app.add_plugins(GeneralPlugin);
     app.add_plugins(GameplayPlugin);
+    app.add_plugins(GameUiPlugin);
 
     app.add_systems(Update, check_loading_state);
 
@@ -66,7 +69,8 @@ pub fn main_setup(
     mut materials: ResMut<Assets<ColorMaterial>>,
     asset_server: Res<AssetServer>,
     previous_setup: Query<Entity, With<DestroyOnHot>>,
-    mut gadget_resource: ResMut<GadgetImageResource>,
+    mut gadget_resource: ResMut<GameResources>,
+    mut rng: GlobalEntropy<WyRand>
 ) {
     gadget_resource.setup(&asset_server);
     for entity in previous_setup.iter() {
@@ -205,7 +209,7 @@ pub fn main_setup(
 }
 
 fn check_loading_state(
-    gadget_resource: Res<GadgetImageResource>,
+    gadget_resource: Res<GameResources>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     if gadget_resource.gadget_images.len() > 0 {

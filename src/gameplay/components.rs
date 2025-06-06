@@ -1,5 +1,5 @@
 use crate::gadgets::components::GadgetType;
-use crate::gadgets::resources::GadgetImageResource;
+use crate::gadgets::resources::GameResources;
 use crate::gameplay::events::OnGadgetCardSelected;
 use avian2d::prelude::{Collider, OnCollisionStart};
 use bevy::color::palettes::tailwind;
@@ -13,6 +13,27 @@ pub struct Player {
     pub current_widget: Option<Entity>,
     pub widget_deck: Vec<GadgetType>,
     pub discard_pile: Vec<GadgetType>,
+    pub points: usize,
+    pub coins: usize,
+    pub balls_left: usize,
+    pub balls_per_level: usize,
+}
+
+impl Player {
+    pub fn new(balls_per_level: usize) -> Self {
+        Self {
+            balls_left: balls_per_level,
+            balls_per_level,
+            ..default()
+        }
+    }
+    
+    pub fn reset(&mut self) {
+        self.current_widget = None;
+        self.points = 0;
+        self.coins = 0;
+        self.balls_left = self.balls_per_level;
+    }
 }
 #[derive(Component, Debug)]
 #[relationship(relationship_target = HelperText)]
@@ -52,7 +73,7 @@ pub fn spawn_widget_card(
     gadget_type: GadgetType,
     commands: &mut Commands,
     shapes: &ShapeCommands,
-    gadget_resource: &GadgetImageResource,
+    gadget_resource: &GameResources,
 ) -> Entity {
     commands
         .spawn((
