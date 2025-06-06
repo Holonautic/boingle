@@ -4,6 +4,7 @@ use crate::gadgets::resources::*;
 use crate::gameplay::components::Player;
 use avian2d::parry::shape::Ball;
 use avian2d::prelude::*;
+use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
 use bevy_rand::global::GlobalEntropy;
 use bevy_rand::prelude::WyRand;
@@ -14,7 +15,7 @@ use rand::Rng;
 pub fn on_coins_spawn_from_bumper(
     trigger: Trigger<OnCollisionStart>,
     mut commands: Commands,
-    mut q_gadget: Query<(&mut Gadget, &CoinBumperGadget)>,
+    mut q_gadget: Query<(&mut Gadget, &CoinBumperGadget), Without<GadgetDeactivated>>,
     ball_query: Query<Entity, With<PlayerBall>>,
     mut rng: GlobalEntropy<WyRand>,
     spatial_query: SpatialQuery,
@@ -23,12 +24,15 @@ pub fn on_coins_spawn_from_bumper(
     if ball_query.get(trigger.collider).is_err() {
         return;
     }
-    let (mut gadget, coin_bumper) = q_gadget.get_mut(trigger.target()).unwrap();
-    if gadget.activations_left <= 0 {
+    let Ok((mut gadget, coin_bumper)) = q_gadget.get_mut(trigger.target()) else {
         return;
-    }
+    };
 
     gadget.activations_left -= 1;
+    
+    if gadget.activations_left == 0 {
+        commands.entity(trigger.target()).try_insert(GadgetDeactivated);
+    }
 
     let mut spawned_coins = 0;
 
@@ -59,11 +63,13 @@ pub fn on_coins_spawn_from_bumper(
 
 pub fn on_bumper_hit(
     trigger: Trigger<OnCollisionStart>,
-    mut bumper_query: Query<(&Bumper, &mut Gadget)>,
+    mut commands: Commands,
+    mut bumper_query: Query<(Entity, &Bumper, &mut Gadget, &mut Sprite)>,
     mut q_ball: Query<&mut LinearVelocity, With<PlayerBall>>,
     mut player: Single<&mut Player>,
 ) {
-    let Ok((bumper, mut gadget)) = bumper_query.get_mut(trigger.target()) else {
+    let Ok((entity, bumper, mut gadget, mut sprite)) = bumper_query.get_mut(trigger.target())
+    else {
         return;
     };
     let Ok(mut velocity) = q_ball.get_mut(trigger.collider) else {
@@ -74,5 +80,9 @@ pub fn on_bumper_hit(
         gadget.activations_left -= 1;
         player.points += bumper.points;
         velocity.0 *= 1.5;
+
+        if gadget.activations_left == 0 {
+            commands.entity(entity).insert(GadgetDeactivated);
+        }
     }
 }

@@ -89,7 +89,11 @@ impl Bumper {
             Gadget::new(1),
             Name::new("bumper"),
             Transform::from_scale(Vec3::splat(1.0)),
-            Sprite::from_image(image_handle),
+            Sprite {
+                image: image_handle,
+                color: tailwind::PURPLE_400.into(),
+                ..Default::default()
+            },
             RigidBody::Static,
             Restitution::new(0.9),
             Collider::circle(35.0),
@@ -99,6 +103,8 @@ impl Bumper {
     }
 }
 
+#[derive(Component, Debug, Reflect)]
+pub struct GadgetDeactivated;
 
 
 #[derive(Component, Debug, Reflect)]

@@ -18,7 +18,6 @@ impl Plugin for GameplayPlugin {
         app.add_systems(Update, remove_all_placed_gadgets_system);
         app.add_systems(Update, ball_left_play_area_system.run_if(in_state(LevelState::BallBouncing)));
         app.add_systems(FixedPostUpdate, clamp_max_ball_velocity);
-        app.add_systems(Update, update_visual_based_on_gadget_activation);
 
         app.add_systems(OnEnter(LevelState::PlaceWidget), show_widget_selection);
         app.add_systems(OnExit(LevelState::PlaceWidget), reactivate_gadgets);
@@ -27,6 +26,10 @@ impl Plugin for GameplayPlugin {
 
         app.add_observer(on_gadget_card_selected);
         app.add_observer(on_coin_collected);
+        
+        app.add_observer(on_gadget_deactivated_added);
+        app.add_observer(on_gadget_deactivated_removed);
+
 
 
 

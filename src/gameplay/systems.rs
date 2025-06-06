@@ -1,5 +1,7 @@
 use crate::PlayerBall;
-use crate::gadgets::components::{CollectibleType, Gadget, GadgetType, PlayerPlacedGadget, Preview};
+use crate::gadgets::components::{
+    CollectibleType, Gadget, GadgetDeactivated, GadgetType, PlayerPlacedGadget, Preview,
+};
 use crate::gadgets::large_block_bundle;
 use crate::gadgets::resources::GameResources;
 use crate::gameplay::components::*;
@@ -23,10 +25,7 @@ pub fn basic_setup(
     game_cursor: Res<GameCursor>,
     asset_resources: Res<GameResources>,
 ) {
-    commands.spawn((
-        Name::new("Player"),
-        Player::new(5),
-    ));
+    commands.spawn((Name::new("Player"), Player::new(5)));
 }
 
 #[hot]
@@ -67,9 +66,9 @@ pub fn widget_placement_system(
     }
 
     if is_intersecting {
-        sprite.color.set_alpha(0.1);
+        sprite.color = tailwind::RED_500.into();
     } else {
-        sprite.color.set_alpha(0.5);
+        sprite.color = Color::WHITE;
     }
     widget_transform.translation = game_cursor.position;
 
@@ -217,20 +216,31 @@ pub fn on_coin_collected(
     commands.entity(trigger.target()).despawn();
 }
 
-pub fn update_visual_based_on_gadget_activation(mut gadget_query: Query<(&Gadget, &mut Sprite)>) {
-    for (gadget, mut sprite) in gadget_query.iter_mut() {
-        let color = if gadget.activations_left > 0 {
-            Color::WHITE
-        } else {
-            tailwind::GRAY_700.into()
-        };
-        sprite.color = color;
-    }
+pub fn on_gadget_deactivated_removed(
+    trigger: Trigger<OnRemove, GadgetDeactivated>,
+    mut gadget_deactivated_query: Query<(&mut Sprite), With<Gadget>>,
+) {
+    let Ok(mut sprite) = gadget_deactivated_query.get_mut(trigger.target()) else {
+        return;
+    };
+    sprite.color = Color::WHITE;
+}
+pub fn on_gadget_deactivated_added(
+    trigger: Trigger<OnAdd, GadgetDeactivated>,
+    mut gadget_deactivated_query: Query<(&mut Sprite), With<Gadget>>,
+) {
+    let Ok(mut sprite) = gadget_deactivated_query.get_mut(trigger.target()) else {
+        return;
+    };
+    sprite.color = tailwind::GRAY_700.into();
 }
 
-pub fn reactivate_gadgets(mut gadgets_query: Query<&mut Gadget>) {
-    for mut gadget in gadgets_query.iter_mut() {
+pub fn reactivate_gadgets(
+    mut commands: Commands,
+    mut gadgets_query: Query<(Entity, &mut Gadget)>) {
+    for (entity, mut gadget) in gadgets_query.iter_mut() {
         gadget.activations_left = gadget.activations_per_round;
+        commands.entity(entity).try_remove::<GadgetDeactivated>();
     }
 }
 
@@ -239,7 +249,7 @@ pub fn restarting_level(
     q_gadgets: Query<Entity, With<PlayerPlacedGadget>>,
     collectible_query: Query<Entity, With<CollectibleType>>,
     mut player: Single<&mut Player>,
-   mut next_state: ResMut<NextState<LevelState>>,
+    mut next_state: ResMut<NextState<LevelState>>,
 ) {
     for entity in q_gadgets.iter() {
         commands.entity(entity).despawn();
