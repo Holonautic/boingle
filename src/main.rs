@@ -3,6 +3,7 @@ mod game_ui;
 mod gameplay;
 mod general;
 
+use crate::gadgets::components::{Block, GadgetType, SquareBlock, WideBlock};
 use crate::gadgets::resources::GameResources;
 use crate::game_ui::GameUiPlugin;
 use crate::gameplay::GameplayPlugin;
@@ -12,6 +13,7 @@ use crate::general::components::*;
 use avian2d::PhysicsPlugins;
 use avian2d::math::Vector;
 use avian2d::prelude::*;
+use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_rand::prelude::*;
@@ -19,6 +21,8 @@ use bevy_simple_subsecond_system::prelude::*;
 use bevy_vector_shapes::Shape2dPlugin;
 use gameplay::game_states::*;
 use rand::Rng;
+use std::f32::consts::TAU;
+use bevy_easings::EasingsPlugin;
 
 fn main() -> AppExit {
     let mut app = App::new();
@@ -34,7 +38,7 @@ fn main() -> AppExit {
     app.add_plugins(PhysicsPickingPlugin::default());
     app.add_plugins(PhysicsDebugPlugin::default());
     // app.add_plugins(WorldInspectorPlugin::new());
-
+    app.add_plugins(EasingsPlugin::default());
     app.insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0));
     app.insert_resource(GameResources::default());
 
@@ -91,68 +95,10 @@ pub fn main_setup(
     commands.spawn((
         DestroyOnHot,
         BallCannon::bundle(),
-        Transform::from_xyz(x_position, y_position, 0.0).with_rotation(Quat::from_rotation_z(
-            f32::to_radians(angle),
-        )),
+        Transform::from_xyz(x_position, y_position, 0.0)
+            .with_rotation(Quat::from_rotation_z(f32::to_radians(angle))),
     ));
-    // commands.spawn((adma
-    //     DestroyOnHot,
-    //     large_block(&asset_server),
-    //     Transform {
-    //         translation: Vec3::new(0., -150.0, 0.),
-    //         rotation: Quat::from_rotation_z(TAU * 0.3),
-    //         scale: Vec3::splat(0.5),
-    //     },
-    // ));
-    // commands.spawn((
-    //     DestroyOnHot,
-    //     large_block(&asset_server),
-    //     Transform {
-    //         translation: Vec3::new(-550., -150.0, 0.),
-    //         rotation: Quat::from_rotation_z(TAU * -0.3),
-    //         scale: Vec3::splat(0.5),
-    //     },
-    // ));
-    //
-    // commands.spawn((
-    //     DestroyOnHot,
-    //     large_block(&asset_server),
-    //     Transform {
-    //         translation: Vec3::new(-550., 0.0, 0.),
-    //         rotation: Quat::from_rotation_z(TAU * -0.0),
-    //         scale: Vec3::splat(0.5),
-    //     },
-    // ));
-    //
-    // commands.spawn((
-    //     DestroyOnHot,
-    //     large_block(&asset_server),
-    //     Transform {
-    //         translation: Vec3::new(-550., 250.0, 0.),
-    //         rotation: Quat::from_rotation_z(TAU * -0.1),
-    //         scale: Vec3::splat(0.5),
-    //     },
-    // ));
-    //
-    // commands.spawn((
-    //     DestroyOnHot,
-    //     bumper(&asset_server),
-    //     Transform {
-    //         translation: Vec3::new(-190., -150.0, 0.),
-    //         rotation: Quat::from_rotation_z(TAU * -0.3),
-    //         scale: Vec3::splat(1.0),
-    //     },
-    // ));
-    //
-    // commands.spawn((
-    //     DestroyOnHot,
-    //     bumper(&asset_server),
-    //     Transform {
-    //         translation: Vec3::new(-215., -250.0, 0.),
-    //         rotation: Quat::from_rotation_z(TAU * -0.3),
-    //         scale: Vec3::splat(1.0),
-    //     },
-    // ));
+
 }
 
 #[hot]
@@ -162,5 +108,3 @@ fn greet(time: Res<Time>) {
         time.elapsed_secs()
     );
 }
-
-

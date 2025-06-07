@@ -22,7 +22,7 @@ impl Plugin for GameplayPlugin {
         app.add_systems(OnEnter(LevelState::PlaceWidget), show_widget_selection);
         app.add_systems(OnExit(LevelState::PlaceWidget), reactivate_gadgets);
         app.add_systems(OnEnter(LevelState::LevelStart), restarting_level);
-
+        app.add_systems(OnEnter(LevelState::EndOfRound), end_of_round_system);
 
         app.add_observer(on_gadget_card_selected);
         app.add_observer(on_coin_collected);

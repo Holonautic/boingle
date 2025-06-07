@@ -1,16 +1,21 @@
 use crate::game_ui::components::*;
 use crate::gameplay::components::Player;
+use crate::gameplay::events::OnGadgetCardSelected;
 use crate::gameplay::game_states::LevelState;
 use bevy::color::palettes::tailwind;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_bundled_observers::observers;
 use bevy_simple_subsecond_system::hot;
+use num_format::{Locale, ToFormattedString};
 
 #[derive(Component)]
 struct DestroyOnHot;
 
 #[hot(rerun_on_hot_patch = true)]
-pub fn setup_ui(mut commands: Commands, destroy_query: Query<Entity, With<DestroyOnHot>>) {
+pub fn setup_ui(mut commands: Commands,
+                player: Single<&Player>,
+                destroy_query: Query<Entity, With<DestroyOnHot>>) {
     for entity in destroy_query.iter() {
         commands.entity(entity).despawn();
     }
@@ -85,6 +90,48 @@ pub fn setup_ui(mut commands: Commands, destroy_query: Query<Entity, With<Destro
 
     commands.spawn((
         DestroyOnHot,
+        Name::new("next_level_goal_ui"),
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Px(100.0),
+            top: Val::Px(10.0),
+            left: Val::Px(0.0),
+            right: Val::Px(0.0),
+            justify_content: JustifyContent::Center, // center horizontally
+            align_items: AlignItems::FlexStart,      // center vertically within bar
+            flex_direction: FlexDirection::Row,
+            ..default()
+        },
+        children![(
+            Node {
+                flex_direction: FlexDirection::Row,
+                column_gap: Val::Px(4.0),
+                ..default()
+            },
+            children![
+                (
+                    Text::new("Goal:"),
+                    TextFont {
+                        font_size: font_size * 1.3,
+                        ..default()
+                    },
+                    TextColor(tailwind::CYAN_300.into()),
+                ),
+                (
+                    UiPointsForNextLevel,
+                    Text::new(format!("{}", player.point_for_next_level)),
+                    TextFont {
+                        font_size: font_size * 1.3,
+                        ..default()
+                    },
+                    TextColor(tailwind::CYAN_300.into()),
+                )
+            ]
+        ),],
+    ));
+
+    commands.spawn((
+        DestroyOnHot,
         Name::new("ui_top_right"),
         Node {
             top: Val::Px(10.0),
@@ -94,36 +141,39 @@ pub fn setup_ui(mut commands: Commands, destroy_query: Query<Entity, With<Destro
             ..default()
         },
         children![
-        (
-            Text::new("Balls:"),
-            TextFont {
-                font_size,
-                ..default()
-            }
-        ),
-        (
-            UiBallsText,
-            Text::new("0"),
-            TextFont {
-                font_size,
-                ..default()
-            }
-        )
-    ],
+            (
+                Text::new("Balls:"),
+                TextFont {
+                    font_size,
+                    ..default()
+                }
+            ),
+            (
+                UiBallsText,
+                Text::new("0"),
+                TextFont {
+                    font_size,
+                    ..default()
+                }
+            )
+        ],
     ));
 }
 
 #[hot]
 pub fn update_ui(
     player: Single<&Player>,
-    mut points_text: Single<&mut Text, (With<UiPointsText>, Without<UiCoinsText>,  Without<UiBallsText>)>,
-    mut gold_text: Single<&mut Text, (With<UiCoinsText>, Without<UiPointsText>, Without<UiBallsText>)>,
-    mut balls_text: Single<&mut Text, (With<UiBallsText>,Without<UiCoinsText>, Without<UiPointsText>)>,
-
+    mut set: ParamSet<(
+        Single<&mut Text, With<UiPointsText>>,
+        Single<&mut Text, With<UiCoinsText>>,
+        Single<&mut Text, With<UiBallsText>>,
+        Single<&mut Text, With<UiPointsForNextLevel>>,
+    )>,
 ) {
-    points_text.0 = format!("{}", player.points);
-    gold_text.0 = format!("{}", player.coins);
-    balls_text.0 = format!("{}", player.balls_left);
+    set.p0().0 = format!("{}", player.points);
+    set.p1().0 = format!("{}", player.coins);
+    set.p2().0 = format!("{}", player.balls_left);
+    set.p3().0 = format!("{}", player.point_for_next_level);
 }
 
 const NORMAL_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
@@ -171,28 +221,22 @@ pub fn spawn_level_over_ui(
                 TextColor(Color::srgb(0.9, 0.9, 0.9)),
                 TextShadow::default(),
             )],
-            observers![
-                |_: Trigger<Pointer<Click>>,
-                  mut commands: Commands,
-                  ui_level_over_query: Query<Entity, With<UiLevelOver>>,
-                  mut next_state: ResMut<NextState<LevelState>>| {
-                    for entity in ui_level_over_query.iter() {
-                        commands.entity(entity).despawn();
-                    }
-                    next_state.set(LevelState::LevelStart);
+            observers![|_: Trigger<Pointer<Click>>,
+                        mut commands: Commands,
+                        ui_level_over_query: Query<Entity, With<UiLevelOver>>,
+                        mut next_state: ResMut<NextState<LevelState>>| {
+                for entity in ui_level_over_query.iter() {
+                    commands.entity(entity).despawn();
                 }
-            ]
+                next_state.set(LevelState::LevelStart);
+            }]
         )],
     ));
 }
 
 pub fn button_system(
     mut interaction_query: Query<
-        (
-            &Interaction,
-            &mut BackgroundColor,
-            &mut BorderColor,
-        ),
+        (&Interaction, &mut BackgroundColor, &mut BorderColor),
         (Changed<Interaction>, With<Button>),
     >,
 ) {
@@ -212,4 +256,69 @@ pub fn button_system(
             }
         }
     }
+}
+
+#[derive(Component)]
+pub(super) struct DestroyOnWidgetReload;
+
+pub fn widget_selection_ui_despawn(
+    _: Trigger<OnGadgetCardSelected>,
+    mut commands: Commands,
+    destroy_query: Query<Entity, With<DestroyOnWidgetReload>>,
+) {
+    for entity in destroy_query.iter() {
+        commands.entity(entity).despawn();
+    }
+}
+#[hot(rerun_on_hot_patch = true)]
+pub fn widget_selection_ui(
+    mut commands: Commands,
+    destroy_query: Query<Entity, With<DestroyOnWidgetReload>>,
+    player: Single<&Player>,
+) {
+    for entity in destroy_query.iter() {
+        commands.entity(entity).despawn();
+    }
+    let last_round_points_formatted = player.points_last_round.to_formatted_string(&Locale::en);
+
+    let font_size = 20.0;
+    commands.spawn((
+        DestroyOnWidgetReload,
+        Name::new("widget_selection_ui"),
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Px(100.0),
+            top: Val::Px(500.0),
+            left: Val::Px(0.0),
+            right: Val::Px(0.0),
+            justify_content: JustifyContent::Center, // center horizontally
+            align_items: AlignItems::Center,         // center vertically within bar
+            flex_direction: FlexDirection::Row,
+            ..default()
+        },
+        children![(
+            Node {
+                flex_direction: FlexDirection::Row,
+                column_gap: Val::Px(4.0),
+                ..default()
+            },
+            children![
+                (
+                    Text::new("Points Last Round:"),
+                    TextFont {
+                        font_size,
+                        ..default()
+                    }
+                ),
+                (
+                    UiPointsText,
+                    Text::new(last_round_points_formatted),
+                    TextFont {
+                        font_size,
+                        ..default()
+                    }
+                )
+            ]
+        ),],
+    ));
 }

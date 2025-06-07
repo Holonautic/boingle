@@ -2,37 +2,48 @@ use crate::gadgets::resources::GameResources;
 use crate::gadgets::*;
 use crate::gameplay::components::BallCannon;
 use crate::gameplay::events::*;
+use crate::general::components::SpriteVisualOf;
 use avian2d::prelude::*;
+use bevy::asset::io::ErasedAssetWriter;
 use bevy::ecs::component::HookContext;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
 use bevy_bundled_observers::observers;
 use std::fmt::{Display, Formatter};
 
-#[derive(Component, Debug, Clone, Reflect, Hash, PartialEq, Eq)]
+#[derive(Component, Debug, Clone, Reflect, Hash, PartialEq, Eq, Copy)]
 pub enum GadgetType {
-    LargeBlock,
+    SquareBlock,
+    WideBlock,
     Bumper,
     CoinBumper,
     BallCannon,
 }
 
 impl GadgetType {
-    pub fn card_icon_size(&self) -> Vec3 {
-        match self {
-            GadgetType::LargeBlock => Vec3::splat(0.3),
-            GadgetType::Bumper => Vec3::splat(1.0),
-            GadgetType::CoinBumper => Vec3::splat(0.5),
-            GadgetType::BallCannon => Vec3::splat(0.5),
-        }
-    }
-
     pub fn spawn_widget(&self, commands: &mut Commands, asset_resource: &GameResources) -> Entity {
         match self {
-            GadgetType::LargeBlock => commands.spawn(large_block_bundle(asset_resource)).id(),
-            GadgetType::Bumper => commands.spawn(Bumper::bundle(asset_resource)).id(),
-            GadgetType::CoinBumper => commands.spawn(coin_bumper_bundle(asset_resource)).id(),
+            GadgetType::SquareBlock => commands
+                .spawn((SquareBlock, Gadget::new(5), PointsOnHit::new(1)))
+                .id(),
+            GadgetType::WideBlock => commands
+                .spawn((WideBlock, Gadget::new(5), PointsOnHit::new(1)))
+                .id(),
+            GadgetType::Bumper => commands
+                .spawn((Bumper, Gadget::new(3), PointsOnHit::new(3)))
+                .id(),
+            GadgetType::CoinBumper => commands.spawn(CoinBumperGadget::default()).id(),
             GadgetType::BallCannon => commands.spawn(BallCannon::bundle()).id(),
+        }
+    }
+    
+    pub fn description(&self) -> &'static str {
+        match self {
+            GadgetType::SquareBlock => {"Points: 5x1"}
+            GadgetType::WideBlock => {"Points: 5x1"}
+            GadgetType::Bumper => {"Points: 3x3"}
+            GadgetType::CoinBumper => {"Spawns Coins"}
+            GadgetType::BallCannon => {"Click to Spawns Ball"}
         }
     }
 }
@@ -40,7 +51,8 @@ impl GadgetType {
 impl Display for GadgetType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GadgetType::LargeBlock => write!(f, "Large Block"),
+            GadgetType::SquareBlock => f.write_str("Square Block"),
+            GadgetType::WideBlock => write!(f, "Wide Block"),
             GadgetType::Bumper => write!(f, "Bumper"),
             GadgetType::CoinBumper => write!(f, "Coin Bumper"),
             GadgetType::BallCannon => write!(f, "Ball Cannon"),
@@ -70,37 +82,29 @@ impl Gadget {
 }
 
 #[derive(Component, Debug, Reflect)]
-pub struct Bumper {
-    pub points: usize,
-}
+#[require(Transform)]
+#[require(Visibility)]
+#[require(Gadget::new(1))]
+#[require(PointsOnHit::new(5))]
+#[require(Name::new("bumper"))]
+#[require(RigidBody::Static)]
+#[require(BounceOnHit)]
+#[require(Restitution::new(1.5))]
+#[require(Collider::circle(30.0))]
+#[require(CollisionEventsEnabled)]
+#[component(on_add=Bumper::on_add)]
+pub struct Bumper;
 
 impl Bumper {
-    pub fn new(points: usize) -> Self {
-        Self { points }
-    }
-
-    pub fn bundle(gadget_image_resource: &GameResources) -> impl Bundle {
-        let image_handle = gadget_image_resource
-            .gadget_images
-            .get(&GadgetType::Bumper)
-            .unwrap()
-            .clone();
-        (
-            Bumper::new(5),
-            Gadget::new(1),
-            Name::new("bumper"),
-            Transform::from_scale(Vec3::splat(1.0)),
-            Sprite {
-                image: image_handle,
-                color: tailwind::PURPLE_400.into(),
-                ..Default::default()
-            },
-            RigidBody::Static,
-            Restitution::new(0.9),
-            Collider::circle(35.0),
-            CollisionEventsEnabled,
-            observers![on_bumper_hit],
-        )
+    fn on_add(mut world: DeferredWorld, context: HookContext) {
+        let game_resources = world.resource::<GameResources>();
+        let image = game_resources.gadget_images[&GadgetType::Bumper].clone();
+        world.commands().spawn((
+            ChildOf(context.entity),
+            SpriteVisualOf(context.entity),
+            Transform::from_scale(Vec3::splat(0.5)),
+            Sprite::from_image(image),
+        ));
     }
 }
 
@@ -108,17 +112,46 @@ impl Bumper {
 pub struct GadgetDeactivated;
 
 #[derive(Component, Debug, Reflect)]
+#[require(Transform, Visibility)]
+#[require(Name::new("coin_bumper"))]
+#[require(GadgetType::CoinBumper)]
+#[require(Gadget::new(1))]
+#[require(RigidBody::Static)]
+#[require(Restitution::new(2.0))]
+#[require(Collider::circle(29.0))]
+#[require(CollisionEventsEnabled)]
+#[require(BounceOnHit)]
+#[component(on_add=CoinBumperGadget::on_add)]
 pub struct CoinBumperGadget {
     pub coins_to_spawn: usize,
 }
-
+impl Default for CoinBumperGadget {
+    fn default() -> Self {
+        Self { coins_to_spawn: 3 }
+    }
+}
 impl CoinBumperGadget {
-    pub fn new(coins_to_spawn: usize) -> Self {
-        Self { coins_to_spawn }
+    fn on_add(mut world: DeferredWorld, context: HookContext) {
+        let game_resources = world.resource::<GameResources>();
+        let image = game_resources.gadget_images[&GadgetType::CoinBumper].clone();
+
+        world
+            .commands()
+            .entity(context.entity)
+            .insert(observers![on_coins_spawn_from_bumper]);
+
+        world.commands().spawn((
+            ChildOf(context.entity),
+            SpriteVisualOf(context.entity),
+            Transform::from_scale(Vec3::splat(0.5)),
+            Sprite::from_image(image),
+        ));
     }
 }
 
 #[derive(Component, Debug, Clone, Reflect, Hash, PartialEq, Eq)]
+#[require(RemainingRounds(3))]
+#[require(ShrinkAtEndOfRound(0.3))]
 pub enum CollectibleType {
     Coin,
 }
@@ -134,21 +167,21 @@ impl Coin {
     }
     fn on_coin_added(mut world: DeferredWorld, context: HookContext) {
         let game_resource = world.get_resource::<GameResources>().unwrap();
-        let image = game_resource
-            .collectibles_images
-            .get(&CollectibleType::Coin)
-            .unwrap()
-            .clone();
+        let image = game_resource.collectibles_images[&CollectibleType::Coin].clone();
         let mut sprite = world.get_mut::<Sprite>(context.entity).unwrap();
 
         sprite.image = image;
+
+        world
+            .commands()
+            .spawn((ChildOf(context.entity), SpriteVisualOf(context.entity)));
     }
 }
 
 impl CollectibleType {
     pub fn collider(&self) -> Collider {
         match self {
-            CollectibleType::Coin => Collider::circle(10.0),
+            CollectibleType::Coin => Collider::circle(14.0),
         }
     }
 
@@ -178,7 +211,7 @@ impl CollectibleType {
 #[derive(Component, Debug, Reflect)]
 #[require(RigidBody::Dynamic)]
 #[require(Restitution::new(0.99))]
-#[require(Collider::circle(30.0))]
+#[require(Collider::circle(25.0))]
 #[require(Name::new("player_ball"))]
 #[component(on_add=PlayerBall::on_add)]
 pub struct PlayerBall;
@@ -187,19 +220,106 @@ impl PlayerBall {
     fn on_add(mut world: DeferredWorld, context: HookContext) {
         let game_resource = world.get_resource::<GameResources>().unwrap();
         let image = game_resource.ball_image.clone();
-        world.commands().entity(context.entity).insert(Sprite::from_image(image));
+        world
+            .commands()
+            .entity(context.entity)
+            .insert(Sprite::from_image(image));
+    }
+}
 
+#[derive(Component, Debug, Reflect)]
+#[require(Name::new("block"))]
+#[require(RigidBody::Static)]
+#[require(Restitution::new(0.7))]
+#[require(Collider)]
+#[require(Visibility)]
+#[require(Transform)]
+#[require(PointsOnHit::new(3))]
+#[require(Gadget::new(3))]
+#[require(CollisionEventsEnabled)]
+#[component(on_add=Block::on_add)]
+pub struct Block {
+    pub size: Vec2,
+}
+
+impl Block {
+    pub fn new(size: Vec2) -> Self {
+        Self { size }
     }
 
-    // pub fn ball_bundle(asset_server: &AssetServer) -> impl Bundle {
-    //     let ball_image = asset_server.load("sprites/ball_blue_small.png");
-    //     (
-    //         Name::new("ball_blue_small"),
-    //         PlayerBall,
-    //         Sprite::from_image(ball_image),
-    //         RigidBody::Dynamic,
-    //         Restitution::new(0.99),
-    //         Collider::circle(30.0),
-    //     )
-    // }
+    fn on_add(mut world: DeferredWorld, context: HookContext) {
+        let block = world.get::<Block>(context.entity).unwrap();
+        let size = block.size;
+        let game_resource = world.get_resource::<GameResources>().unwrap();
+        let image = game_resource.gadget_images[&GadgetType::SquareBlock].clone();
+        let slice_border = 30.0;
+        let scale_mode = SpriteImageMode::Sliced(TextureSlicer {
+            border: BorderRect::all(slice_border),
+            center_scale_mode: SliceScaleMode::Stretch,
+            ..default()
+        });
+        world.commands().spawn((
+            ChildOf(context.entity),
+            SpriteVisualOf(context.entity),
+            Sprite {
+                image,
+                custom_size: Some(size),
+                image_mode: scale_mode,
+                ..default()
+            },
+        ));
+        world
+            .commands()
+            .entity(context.entity)
+            .insert((Collider::rectangle(size.x, size.y),));
+    }
 }
+
+#[derive(Component, Debug, Reflect)]
+#[component(on_add=PointsOnHit::on_add)]
+pub struct PointsOnHit {
+    pub amount: usize,
+}
+impl PointsOnHit {
+    pub fn new(amount: usize) -> Self {
+        Self { amount }
+    }
+
+    pub fn on_add(mut world: DeferredWorld, context: HookContext) {
+        world
+            .commands()
+            .entity(context.entity)
+            .insert(observers![on_hit_gain_points]);
+    }
+}
+
+#[derive(Component, Debug, Reflect, Default)]
+#[component(on_add=BounceOnHit::on_add)]
+pub struct BounceOnHit;
+
+impl BounceOnHit {
+    fn on_add(mut world: DeferredWorld, context: HookContext) {
+        world
+            .commands()
+            .entity(context.entity)
+            .insert(observers![on_hit_bounce]);
+    }
+}
+
+#[derive(Component, Debug, Reflect)]
+#[require(Name::new("wide_block"))]
+#[require(Block::new(Vec2::new(150.0, 40.0)))]
+#[require(Gadget::new(3))]
+pub struct WideBlock;
+
+#[derive(Component, Debug, Reflect)]
+#[require(Name::new("square_block"))]
+#[require(Block::new(Vec2::new(50.0, 50.0)))]
+#[require(Gadget::new(5))]
+pub struct SquareBlock;
+
+#[derive(Component, Debug, Reflect, Deref, DerefMut)]
+pub struct ShrinkAtEndOfRound(pub f32);
+
+#[derive(Component, Debug, Reflect, Deref, DerefMut)]
+pub struct RemainingRounds(pub usize);

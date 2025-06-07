@@ -1,12 +1,15 @@
 use crate::gadgets::components::*;
 use crate::gadgets::resources::*;
 use crate::gameplay::components::*;
+use crate::general::components::SpriteVisual;
 use avian2d::prelude::*;
 use bevy::prelude::*;
+use bevy_easings::{Ease, EasingComponent};
 use bevy_rand::global::GlobalEntropy;
 use bevy_rand::prelude::WyRand;
 use bevy_simple_subsecond_system::hot;
 use rand::Rng;
+use crate::game_ui::components::FloatingScore;
 
 #[hot]
 pub fn on_coins_spawn_from_bumper(
@@ -60,28 +63,81 @@ pub fn on_coins_spawn_from_bumper(
     }
 }
 
-pub fn on_bumper_hit(
+pub fn on_hit_gain_points(
     trigger: Trigger<OnCollisionStart>,
     mut commands: Commands,
-    mut bumper_query: Query<(Entity, &Bumper, &mut Gadget)>,
-    mut q_ball: Query<&mut LinearVelocity, With<PlayerBall>>,
+    mut hit_query: Query<(Entity, &Transform, &PointsOnHit, &mut Gadget)>,
+    q_ball: Query<Entity, With<PlayerBall>>,
     mut player: Single<&mut Player>,
 ) {
-    let Ok((entity, bumper, mut gadget)) = bumper_query.get_mut(trigger.target())
-    else {
+    if q_ball.get(trigger.collider).is_err() {
         return;
-    };
-    let Ok(mut velocity) = q_ball.get_mut(trigger.collider) else {
+    }
+    let Ok((entity, transform, points_on_hit, mut gadget)) = hit_query.get_mut(trigger.target())
+    else {
         return;
     };
 
     if gadget.activations_left > 0 {
         gadget.activations_left -= 1;
-        player.points += bumper.points;
-        velocity.0 *= 1.5;
+        player.points += points_on_hit.amount;
+
+        commands.spawn((
+            Transform::from_translation(transform.translation),
+            FloatingScore(points_on_hit.amount),
+        ));
 
         if gadget.activations_left == 0 {
             commands.entity(entity).insert(GadgetDeactivated);
         }
     }
+}
+
+pub fn on_hit_bounce(
+    trigger: Trigger<OnCollisionStart>,
+    mut commands: Commands,
+    mut bounce_on_hit_query: Query<&SpriteVisual, (With<BounceOnHit>, Without<EasingComponent<Transform>>)>,
+    mut transform_query: Query<&mut Transform>,
+    q_ball: Query<Entity, With<PlayerBall>>,
+) {
+    if q_ball.get(trigger.collider).is_err() {
+        return;
+    }
+    let Ok(sprite_visual) = bounce_on_hit_query.get_mut(trigger.target()) else {
+        return;
+    };
+
+    let sprite_transform = transform_query.get_mut(**sprite_visual).unwrap();
+    let start_scale = sprite_transform.scale;
+    let duration = 0.01;
+    commands.entity(**sprite_visual).insert(
+        sprite_transform
+            .ease_to_fn(
+                |start| Transform {
+                    scale: start.scale * 1.1,
+                    ..*start
+                },
+                bevy_easings::EaseFunction::QuadraticOut,
+                bevy_easings::EasingType::Once {
+                    duration: std::time::Duration::from_secs_f32(duration),
+                },
+            )
+            .ease_to_fn(
+                |start| Transform {
+                    scale: start_scale,
+                    ..*start
+                },
+                bevy_easings::EaseFunction::QuadraticOut,
+                bevy_easings::EasingType::Once {
+                    duration: std::time::Duration::from_secs_f32(duration),
+                },
+            ),
+    );
+}
+
+pub fn on_finish_easing_destroy(
+    trigger: Trigger<OnRemove, EasingComponent<Transform>>,
+    mut commands: Commands,
+) {
+    commands.entity(trigger.target()).despawn();
 }

@@ -19,5 +19,6 @@ pub enum LevelState {
     PlaceWidget,
     ShootBall,
     BallBouncing,
+    EndOfRound,
     LevelOver,
 }

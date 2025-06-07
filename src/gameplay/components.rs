@@ -12,32 +12,88 @@ use bevy::text::TextBounds;
 use bevy_bundled_observers::observers;
 use bevy_vector_shapes::prelude::*;
 use std::f32::consts::TAU;
+use bevy_rand::prelude::*;
+use rand::prelude::SliceRandom;
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct Player {
     pub current_widget: Option<Entity>,
+    pub current_hand: Vec<GadgetType>,
     pub widget_deck: Vec<GadgetType>,
     pub discard_pile: Vec<GadgetType>,
+    starter_deck:  Vec<GadgetType>,
     pub points: usize,
+    pub points_last_round: usize,
     pub coins: usize,
     pub balls_left: usize,
     pub balls_per_level: usize,
+    pub current_level: usize,
+    pub point_for_next_level: usize,
 }
 
 impl Player {
-    pub fn new(balls_per_level: usize) -> Self {
+    pub fn new(balls_per_level: usize, rng: &mut Entropy<WyRand>) -> Self {
+        let starter_deck = vec![
+            GadgetType::WideBlock,
+            GadgetType::WideBlock,
+            GadgetType::WideBlock,
+            GadgetType::WideBlock,
+            GadgetType::SquareBlock,
+            GadgetType::SquareBlock,
+            GadgetType::SquareBlock,
+            GadgetType::SquareBlock,
+            GadgetType::Bumper,
+            GadgetType::Bumper,
+            GadgetType::CoinBumper,
+        ];
+        let mut widget_deck = starter_deck.clone();
+        widget_deck.shuffle(rng);
+        
         Self {
             balls_left: balls_per_level,
             balls_per_level,
+            starter_deck,
+            widget_deck,
+            point_for_next_level: Player::points_for_level(0),
             ..default()
         }
+
     }
 
-    pub fn reset(&mut self) {
+    pub fn points_for_level(level: usize) -> usize {
+        let base = 15.0_f32;
+        let growth_factor = 2.2_f32;
+        (base * growth_factor.powi(level.saturating_sub(1) as i32)).round() as usize
+    }
+    pub fn next_card(&mut self, rng: &mut Entropy<WyRand>) -> GadgetType {
+        if self.widget_deck.is_empty() {
+            self.reshuffle_deck(rng)
+        }
+        self.widget_deck.pop().unwrap()
+    }
+    pub fn shuffle_deck(&mut self, rng: &mut Entropy<WyRand>) {
+        self.widget_deck.shuffle(rng)
+    }
+
+    pub fn reshuffle_deck(&mut self, rng: &mut Entropy<WyRand>) {
+        for card in self.discard_pile.iter() {
+            self.widget_deck.push(card.clone());
+        }
+        self.discard_pile.clear();
+        self.shuffle_deck(rng)
+    }
+
+    pub fn reset(&mut self, rng: &mut Entropy<WyRand>) {
         self.current_widget = None;
         self.points = 0;
         self.coins = 0;
         self.balls_left = self.balls_per_level;
+
+        self.widget_deck = self.starter_deck.clone();
+        self.widget_deck.shuffle(rng);
+        self.discard_pile.clear();
+        self.current_hand.clear();
+
     }
 }
 #[derive(Component, Debug)]
@@ -166,14 +222,8 @@ pub fn spawn_widget_card(
             Collider::rectangle(130.0, 190.0),
             children![
                 (
-                    Transform::from_xyz(0.0, 40.0, 10.0).with_scale(gadget_type.card_icon_size()),
-                    Sprite::from_image(
-                        gadget_resource
-                            .gadget_images
-                            .get(&gadget_type)
-                            .unwrap()
-                            .clone()
-                    ),
+                    Transform::from_xyz(0.0, 40.0, 10.0),
+                    gadget_resource.card_sprite(&gadget_type),
                 ),
                 (
                     Text2d::new(format!("{}", gadget_type)),
@@ -181,10 +231,21 @@ pub fn spawn_widget_card(
                         font_size: 15.0,
                         ..default()
                     },
-                    TextBounds::from(Vec2::new(110.0, 70.0)),
+                    TextBounds::from(Vec2::new(110.0, 40.0)),
                     Anchor::TopLeft,
                     TextLayout::new(JustifyText::Center, LineBreak::WordBoundary),
-                    Transform::from_xyz(-55.0, -30.0, 10.0),
+                    Transform::from_xyz(-55.0, -20.0, 10.0),
+                ),
+                (
+                    Text2d::new(format!("{}", gadget_type.description())),
+                    TextFont {
+                        font_size: 10.0,
+                        ..default()
+                    },
+                    TextBounds::from(Vec2::new(110.0, 40.0)),
+                    Anchor::TopLeft,
+                    TextLayout::new(JustifyText::Center, LineBreak::WordBoundary),
+                    Transform::from_xyz(-55.0, -60.0, 10.0),
                 )
             ],
         ))
