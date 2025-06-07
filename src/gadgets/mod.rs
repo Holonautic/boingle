@@ -2,10 +2,9 @@ pub mod components;
 pub mod resources;
 mod systems;
 
-use crate::gadgets::components::{CoinBumperGadget, CollectibleType, Gadget, GadgetType};
+use crate::gadgets::components::*;
 use crate::gadgets::resources::GameResources;
 use crate::gameplay::components::{BallSpawnPoint, HelpTextFor, HelperText};
-use crate::{DestroyOnHot, PlayerBall};
 use avian2d::prelude::*;
 use bevy::asset::AssetServer;
 use bevy::color::palettes::tailwind;
@@ -48,7 +47,7 @@ pub fn coin_bumper_bundle(gadget_image_resource: &GameResources) -> impl Bundle 
         Restitution::new(2.0),
         Collider::circle(80.0),
         CollisionEventsEnabled,
-        observers![(on_coins_spawn_from_bumper)],
+        observers![on_coins_spawn_from_bumper],
     )
 }
 
@@ -68,17 +67,7 @@ pub fn ball_spawn_point(
     )
 }
 
-pub fn ball_bundle(asset_server: &AssetServer) -> impl Bundle {
-    let ball_image = asset_server.load("sprites/ball_blue_small.png");
-    (
-        Name::new("ball_blue_small"),
-        PlayerBall,
-        Sprite::from_image(ball_image),
-        RigidBody::Dynamic,
-        Restitution::new(0.99),
-        Collider::circle(30.0),
-    )
-}
+
 
 pub fn spawn_ball_spawner(
     commands: &mut Commands,
@@ -87,7 +76,6 @@ pub fn spawn_ball_spawner(
 ) -> Entity {
     commands
         .spawn((
-            DestroyOnHot,
             ball_spawn_point(meshes, materials),
             Transform::from_xyz(-50.0, 150.0, 0.0),
         ))
@@ -116,7 +104,7 @@ pub fn spawn_ball_spawner(
              q_transform: Query<&Transform>| {
                 let mut transform = q_transform.get(trigger.target).unwrap().clone();
                 transform.scale = Vec3::splat(0.5);
-                commands.spawn((ball_bundle(&asset_server), transform));
+                commands.spawn((PlayerBall, transform));
             },
         )
         .id()

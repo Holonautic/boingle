@@ -1,18 +1,18 @@
 mod gadgets;
+mod game_ui;
 mod gameplay;
 mod general;
-mod game_ui;
 
 use crate::gadgets::resources::GameResources;
 use crate::gadgets::*;
+use crate::game_ui::GameUiPlugin;
 use crate::gameplay::GameplayPlugin;
 use crate::gameplay::components::*;
 use crate::general::GeneralPlugin;
-use crate::general::components::MainCamera;
+use crate::general::components::*;
 use avian2d::PhysicsPlugins;
 use avian2d::math::Vector;
 use avian2d::prelude::*;
-use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
@@ -20,8 +20,7 @@ use bevy_rand::prelude::*;
 use bevy_simple_subsecond_system::prelude::*;
 use bevy_vector_shapes::Shape2dPlugin;
 use gameplay::game_states::*;
-use std::f32::consts::TAU;
-use crate::game_ui::GameUiPlugin;
+use rand::Rng;
 
 fn main() -> AppExit {
     let mut app = App::new();
@@ -35,7 +34,7 @@ fn main() -> AppExit {
     app.add_plugins(Shape2dPlugin::default());
     app.add_plugins(PhysicsPlugins::default());
     app.add_plugins(PhysicsPickingPlugin::default());
-    // app.add_plugins(PhysicsDebugPlugin::default());
+    app.add_plugins(PhysicsDebugPlugin::default());
     // app.add_plugins(WorldInspectorPlugin::new());
 
     app.insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0));
@@ -45,16 +44,14 @@ fn main() -> AppExit {
     app.add_plugins(GameplayPlugin);
     app.add_plugins(GameUiPlugin);
 
-    app.add_systems(Update, check_loading_state);
-
     //game states
     app.insert_state(AppState::Loading);
     app.add_sub_state::<LevelState>();
 
-    app.add_systems(Startup, main_setup);
+    app.add_systems(OnEnter(AppState::Loading), load_assets);
+    app.add_systems(OnEnter(AppState::InGame), main_setup);
 
     app.add_systems(Update, greet);
-    app.add_systems(Update, spawn_ball);
 
     app.run()
 }
@@ -62,93 +59,55 @@ fn main() -> AppExit {
 #[derive(Component)]
 struct DestroyOnHot;
 
+pub fn load_assets(
+    asset_server: Res<AssetServer>,
+    mut gadget_resource: ResMut<GameResources>,
+    mut next_state: ResMut<NextState<AppState>>,
+) {
+    gadget_resource.setup(&asset_server);
+    next_state.set(AppState::InGame);
+}
+
 #[hot(rerun_on_hot_patch = true)]
 pub fn main_setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
-    asset_server: Res<AssetServer>,
     previous_setup: Query<Entity, With<DestroyOnHot>>,
-    mut gadget_resource: ResMut<GameResources>,
-    mut rng: GlobalEntropy<WyRand>
+    mut rng: GlobalEntropy<WyRand>,
+    game_resources: Res<GameResources>,
 ) {
-    gadget_resource.setup(&asset_server);
     for entity in previous_setup.iter() {
         commands.entity(entity).despawn();
     }
 
+    commands.spawn(TestHookComponent {
+        some_text: "Franklin".to_owned(),
+    });
+    commands.spawn(TestHookComponent {
+        some_text: "George".to_owned(),
+    });
+
     commands.spawn((DestroyOnHot, Name::new("main camera"), MainCamera, Camera2d));
 
-    let power = 0.0;
+    let x_position = game_resources.play_area.x - 0.0;
+    let y_min_max = game_resources.play_area.y - 0.0;
+    let y_position = rng.random_range(-y_min_max..=y_min_max);
 
-    commands
-        .spawn((
-            DestroyOnHot,
-            BallSpitter {
-                power: 0.0,
-                max_power: 1500.0,
-                gain: 1000.0,
-                is_increasing_power: false,
-            },
-            Transform::from_translation(Vec3::new(500.0, -250.0, 0.0))
-                .with_rotation(Quat::from_euler(EulerRot::XYZ, 0.0, 0.0, TAU / 14.0)),
-            Collider::rectangle(25.0, 50.0),
-            RigidBody::Static,
-            Mesh2d(meshes.add(Rectangle::new(25.0, 50.0))),
-            MeshMaterial2d(materials.add(Color::from(tailwind::BLUE_500))),
-            children![(
-                IndicatorGauge,
-                Transform::from_translation(Vec3::new(0.0, -(1.0 - power) * 25.0, 0.1))
-                    .with_scale(Vec3::new(1.0, power, 1.0)),
-                Mesh2d(meshes.add(Rectangle::new(25.0, 50.0))),
-                MeshMaterial2d(materials.add(Color::from(tailwind::RED_400))),
-            )],
-        ))
-        .observe(
-            |trigger: Trigger<Pointer<Pressed>>,
-             mut commands: Commands,
-             mut q_spitter: Query<&mut BallSpitter>,
-             q_balls: Query<Entity, With<PlayerBall>>| {
-                for ball_entity in q_balls.iter() {
-                    commands.entity(ball_entity).despawn();
-                }
-                let mut spitter = q_spitter.get_mut(trigger.target).unwrap();
-                spitter.is_increasing_power = true;
-            },
-        )
-        .observe(
-            |trigger: Trigger<Pointer<Out>>, mut q_spitter: Query<&mut BallSpitter>| {
-                let mut spitter = q_spitter.get_mut(trigger.target).unwrap();
-                spitter.is_increasing_power = false;
-                spitter.power = 0.0;
-            },
-        )
-        .observe(
-            |trigger: Trigger<Pointer<Released>>,
-             mut commands: Commands,
-             asset_server: Res<AssetServer>,
-             mut q_spitter: Query<(&mut BallSpitter, &Transform)>,
-             mut next_state: ResMut<NextState<LevelState>>,| {
-                let (mut spitter, spitter_transform) = q_spitter.get_mut(trigger.target).unwrap();
-                spitter.is_increasing_power = false;
-                if spitter.power == 0.0 {
-                    return;
-                }
-                let forward = spitter_transform.rotation * Vec3::Y;
-                let forward_2d = forward.truncate();
-                commands.spawn((
-                    DestroyOnHot,
-                    ball_bundle(&asset_server),
-                    Transform::from_translation(spitter_transform.translation)
-                        .with_scale(Vec3::splat(0.5)),
-                    LinearVelocity(forward_2d * spitter.power),
-                ));
-                next_state.set(LevelState::BallBouncing);
-                spitter.power = 0.0;
-            },
-        );
+    let base_angle = 90.0;
+    let jitter = rng.random_range(-60.0..=60.0);
+    // let jitter = 0.0;
 
-    // commands.spawn((
+    let angle = base_angle + jitter;
+
+    commands.spawn((
+        DestroyOnHot,
+        BallCannon::bundle(),
+        Transform::from_xyz(x_position, y_position, 0.0).with_rotation(Quat::from_rotation_z(
+            f32::to_radians(angle),
+        )),
+    ));
+    // commands.spawn((adma
     //     DestroyOnHot,
     //     large_block(&asset_server),
     //     Transform {
@@ -208,15 +167,6 @@ pub fn main_setup(
     // ));
 }
 
-fn check_loading_state(
-    gadget_resource: Res<GameResources>,
-    mut next_state: ResMut<NextState<AppState>>,
-) {
-    if gadget_resource.gadget_images.len() > 0 {
-        next_state.set(AppState::InGame);
-    }
-}
-
 #[hot]
 fn greet(time: Res<Time>) {
     info_once!(
@@ -225,37 +175,4 @@ fn greet(time: Res<Time>) {
     );
 }
 
-#[derive(Component, Debug, Reflect)]
-pub struct PlayerBall;
 
-#[hot]
-fn spawn_ball(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    input: Res<ButtonInput<KeyCode>>,
-    ball_query: Query<Entity, With<PlayerBall>>,
-) {
-    if !input.just_pressed(KeyCode::Space) {
-        return;
-    }
-
-    for entity in ball_query.iter() {
-        commands.entity(entity).despawn();
-    }
-
-    let ball_image = asset_server.load("sprites/ball_blue_small.png");
-    commands.spawn((
-        DestroyOnHot,
-        Name::new("ball_blue_small"),
-        PlayerBall,
-        Sprite::from_image(ball_image),
-        Transform {
-            translation: Vec3::new(0., 300.0, 0.),
-            rotation: Quat::from_rotation_z(TAU * 0.25),
-            scale: Vec3::splat(0.5),
-        },
-        RigidBody::Dynamic,
-        Restitution::new(0.99),
-        Collider::circle(30.0),
-    ));
-}

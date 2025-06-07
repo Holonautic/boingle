@@ -1,12 +1,17 @@
-use crate::gadgets::components::GadgetType;
+use crate::gadgets::components::*;
 use crate::gadgets::resources::GameResources;
 use crate::gameplay::events::OnGadgetCardSelected;
-use avian2d::prelude::{Collider, OnCollisionStart};
+use crate::gameplay::game_states::LevelState;
+use avian2d::prelude::*;
 use bevy::color::palettes::tailwind;
+use bevy::ecs::component::HookContext;
+use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::text::TextBounds;
+use bevy_bundled_observers::observers;
 use bevy_vector_shapes::prelude::*;
+use std::f32::consts::TAU;
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct Player {
@@ -27,7 +32,7 @@ impl Player {
             ..default()
         }
     }
-    
+
     pub fn reset(&mut self) {
         self.current_widget = None;
         self.points = 0;
@@ -43,6 +48,7 @@ pub struct HelpTextFor(pub Entity);
 #[relationship_target(relationship = HelpTextFor)]
 pub struct HelperText(Vec<Entity>);
 
+#[allow(unused)]
 impl HelperText {
     pub fn get_helper_texts(&self) -> &[Entity] {
         &self.0
@@ -52,11 +58,86 @@ impl HelperText {
 pub struct BallSpawnPoint;
 
 #[derive(Component, Debug, Reflect)]
-pub struct BallSpitter {
+#[require(Transform, Visibility)]
+#[component(on_insert=BallCannon::on_ball_cannon_added)]
+pub struct BallCannon {
     pub power: f32,
     pub max_power: f32,
     pub gain: f32,
     pub is_increasing_power: bool,
+}
+
+impl Default for BallCannon {
+    fn default() -> Self {
+        BallCannon {
+            power: 1000.0,
+            max_power: 1500.0,
+            gain: 1000.0,
+            is_increasing_power: false,
+        }
+    }
+}
+impl BallCannon {
+    fn on_ball_cannon_added(mut world: DeferredWorld, context: HookContext) {
+        world.commands().queue(move |world: &mut World| {
+            let game_resources = world.get_resource::<GameResources>().unwrap();
+            let image = game_resources.gadget_images[&GadgetType::BallCannon].clone();
+            world.commands().spawn((
+                ChildOf(context.entity),
+                Transform::from_scale(Vec3::splat(0.25))
+                    .with_rotation(Quat::from_rotation_z(TAU * 0.5)),
+                Sprite::from_image(image),
+            ));
+        });
+    }
+
+    pub fn bundle() -> impl Bundle {
+        (
+     
+            Collider::rectangle(25.0, 50.0),
+            RigidBody::Static,
+            observers![BallCannon::on_pressed, BallCannon::on_released],
+        )
+    }
+
+    fn on_pressed(
+        _trigger: Trigger<Pointer<Pressed>>,
+        mut commands: Commands,
+        // mut q_spitter: Query<&mut BallSpitter>,
+        q_balls: Query<Entity, With<PlayerBall>>,
+    ) {
+        for ball_entity in q_balls.iter() {
+            commands.entity(ball_entity).despawn();
+        }
+        // let mut spitter = q_spitter.get_mut(trigger.target).unwrap();
+        // spitter.is_increasing_power = true;
+    }
+
+    fn on_released(
+        trigger: Trigger<Pointer<Released>>,
+        mut commands: Commands,
+        asset_server: Res<AssetServer>,
+        mut q_spitter: Query<(&mut BallCannon, &Transform)>,
+        state: Res<State<LevelState>>,
+        mut next_state: ResMut<NextState<LevelState>>,
+    ) {
+        if !matches!(state.get(), LevelState::ShootBall) {
+            return;
+        }
+        let (mut spitter, spitter_transform) = q_spitter.get_mut(trigger.target).unwrap();
+        spitter.is_increasing_power = false;
+        if spitter.power == 0.0 {
+            return;
+        }
+        let forward = spitter_transform.rotation * Vec3::Y;
+        let forward_2d = forward.truncate();
+        commands.spawn((
+            PlayerBall,
+            Transform::from_translation(spitter_transform.translation).with_scale(Vec3::splat(0.5)),
+            LinearVelocity(forward_2d * spitter.power),
+        ));
+        next_state.set(LevelState::BallBouncing);
+    }
 }
 #[derive(Component, Debug, Reflect)]
 pub struct IndicatorGauge;
@@ -123,7 +204,7 @@ pub fn spawn_widget_card(
         })
         .observe(
             |trigger: Trigger<Pointer<Over>>,
-                mut commands: Commands,
+             mut commands: Commands,
              q_children: Query<&Children>,
              mut q_card_border: Query<&mut ShapeFill, With<CardBorder>>| {
                 for child in q_children.get(trigger.target).unwrap().iter() {
@@ -146,12 +227,16 @@ pub fn spawn_widget_card(
                 }
             },
         )
-        .observe(|trigger: Trigger<Pointer<Click>>, mut commands: Commands, q_card: Query<&GadgetCard>| {
-            let gadget_card = q_card.get(trigger.target).unwrap();
-            commands.trigger_targets(
-                OnGadgetCardSelected::new(gadget_card.gadget_type.clone()),
-                trigger.target,
-            );
-        })
+        .observe(
+            |trigger: Trigger<Pointer<Click>>,
+             mut commands: Commands,
+             q_card: Query<&GadgetCard>| {
+                let gadget_card = q_card.get(trigger.target).unwrap();
+                commands.trigger_targets(
+                    OnGadgetCardSelected::new(gadget_card.gadget_type.clone()),
+                    trigger.target,
+                );
+            },
+        )
         .id()
 }

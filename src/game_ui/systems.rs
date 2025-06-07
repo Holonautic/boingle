@@ -2,10 +2,8 @@ use crate::game_ui::components::*;
 use crate::gameplay::components::Player;
 use crate::gameplay::game_states::LevelState;
 use bevy::color::palettes::tailwind;
-use bevy::ecs::system::command::trigger;
 use bevy::prelude::*;
 use bevy_bundled_observers::observers;
-use bevy_inspector_egui::egui::TextStyle;
 use bevy_simple_subsecond_system::hot;
 
 #[derive(Component)]

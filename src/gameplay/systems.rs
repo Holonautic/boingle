@@ -1,21 +1,14 @@
-use crate::PlayerBall;
-use crate::gadgets::components::{
-    CollectibleType, Gadget, GadgetDeactivated, GadgetType, PlayerPlacedGadget, Preview,
-};
-use crate::gadgets::large_block_bundle;
+use crate::gadgets::components::*;
 use crate::gadgets::resources::GameResources;
 use crate::gameplay::components::*;
 use crate::gameplay::events::{OnCoinCollected, OnGadgetCardSelected};
 use crate::gameplay::game_states::LevelState;
 use crate::general::resources::GameCursor;
-use avian2d::parry::shape::Ball;
-use avian2d::parry::simba::scalar::SupersetOf;
 use avian2d::prelude::*;
 use bevy::asset::AssetServer;
 use bevy::color::palettes::tailwind;
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
-use bevy::utils::default;
 use bevy_simple_subsecond_system::hot;
 use bevy_vector_shapes::prelude::*;
 use std::f32::consts::TAU;
@@ -86,7 +79,7 @@ pub fn widget_placement_system(
 #[hot]
 pub fn increase_power_gauge_system(
     time: Res<Time>,
-    mut q_spitter: Query<(&mut BallSpitter, &Children), Without<IndicatorGauge>>,
+    mut q_spitter: Query<(&mut BallCannon, &Children), Without<IndicatorGauge>>,
     mut q_indicator: Query<(&mut Transform), With<IndicatorGauge>>,
 ) {
     for (mut spitter, children) in q_spitter.iter_mut() {
@@ -261,4 +254,36 @@ pub fn restarting_level(
     player.reset();
 
     next_state.set(LevelState::PlaceWidget);
+}
+
+
+#[hot]
+fn spawn_ball(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    input: Res<ButtonInput<KeyCode>>,
+    ball_query: Query<Entity, With<PlayerBall>>,
+) {
+    if !input.just_pressed(KeyCode::Space) {
+        return;
+    }
+
+    for entity in ball_query.iter() {
+        commands.entity(entity).despawn();
+    }
+
+    let ball_image = asset_server.load("sprites/ball_blue_small.png");
+    commands.spawn((
+        Name::new("ball_blue_small"),
+        PlayerBall,
+        Sprite::from_image(ball_image),
+        Transform {
+            translation: Vec3::new(0., 300.0, 0.),
+            rotation: Quat::from_rotation_z(TAU * 0.25),
+            scale: Vec3::splat(0.5),
+        },
+        RigidBody::Dynamic,
+        Restitution::new(0.99),
+        Collider::circle(30.0),
+    ));
 }

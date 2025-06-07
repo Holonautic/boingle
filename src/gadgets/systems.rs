@@ -1,10 +1,7 @@
-use crate::PlayerBall;
 use crate::gadgets::components::*;
 use crate::gadgets::resources::*;
-use crate::gameplay::components::Player;
-use avian2d::parry::shape::Ball;
+use crate::gameplay::components::*;
 use avian2d::prelude::*;
-use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
 use bevy_rand::global::GlobalEntropy;
 use bevy_rand::prelude::WyRand;
@@ -29,9 +26,11 @@ pub fn on_coins_spawn_from_bumper(
     };
 
     gadget.activations_left -= 1;
-    
+
     if gadget.activations_left == 0 {
-        commands.entity(trigger.target()).try_insert(GadgetDeactivated);
+        commands
+            .entity(trigger.target())
+            .try_insert(GadgetDeactivated);
     }
 
     let mut spawned_coins = 0;
@@ -53,9 +52,9 @@ pub fn on_coins_spawn_from_bumper(
             continue;
         }
 
-        commands.spawn(CollectibleType::coin_bundle(
-            &asset_resources,
-            position.extend(0.0),
+        commands.spawn((
+            CollectibleType::coin_bundle(),
+            Transform::from_translation(position.extend(0.0)),
         ));
         spawned_coins += 1;
     }
