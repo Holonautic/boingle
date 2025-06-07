@@ -48,7 +48,7 @@ impl Player {
         ];
         let mut widget_deck = starter_deck.clone();
         widget_deck.shuffle(rng);
-        
+
         Self {
             balls_left: balls_per_level,
             balls_per_level,
@@ -61,9 +61,9 @@ impl Player {
     }
 
     pub fn points_for_level(level: usize) -> usize {
-        let base = 15.0_f32;
+        let base = 5.0_f32;
         let growth_factor = 2.2_f32;
-        (base * growth_factor.powi(level.saturating_sub(1) as i32)).round() as usize
+        (base * growth_factor.powi(level as i32)).round() as usize
     }
     pub fn next_card(&mut self, rng: &mut Entropy<WyRand>) -> GadgetType {
         if self.widget_deck.is_empty() {
@@ -84,10 +84,12 @@ impl Player {
     }
 
     pub fn reset(&mut self, rng: &mut Entropy<WyRand>) {
+        info!("We are resetting everything for player");
         self.current_widget = None;
         self.points = 0;
         self.coins = 0;
         self.balls_left = self.balls_per_level;
+        self.current_level = 0;
 
         self.widget_deck = self.starter_deck.clone();
         self.widget_deck.shuffle(rng);

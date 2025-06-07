@@ -20,7 +20,8 @@ pub struct UiLevelOver;
 
 #[derive(Component)]
 pub struct UiBallsText;
-
+#[derive(Component)]
+pub struct UiCurrentLevelText;
 #[derive(Component)]
 pub struct UiPointsForNextLevel;
 

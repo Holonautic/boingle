@@ -13,9 +13,11 @@ use num_format::{Locale, ToFormattedString};
 struct DestroyOnHot;
 
 #[hot(rerun_on_hot_patch = true)]
-pub fn setup_ui(mut commands: Commands,
-                player: Single<&Player>,
-                destroy_query: Query<Entity, With<DestroyOnHot>>) {
+pub fn setup_ui(
+    mut commands: Commands,
+    player: Single<&Player>,
+    destroy_query: Query<Entity, With<DestroyOnHot>>,
+) {
     for entity in destroy_query.iter() {
         commands.entity(entity).despawn();
     }
@@ -25,11 +27,9 @@ pub fn setup_ui(mut commands: Commands,
         DestroyOnHot,
         Name::new("ui_root"),
         Node {
-            top: Val::Px(10.0),
+            top: Val::Px(5.0),
             left: Val::Px(10.0),
             position_type: PositionType::Absolute,
-            // height: Val::Percent(100.0),
-            // width: Val::Percent(100.0),
             flex_direction: FlexDirection::Column,
             row_gap: Val::Px(5.0),
             ..default()
@@ -134,27 +134,64 @@ pub fn setup_ui(mut commands: Commands,
         DestroyOnHot,
         Name::new("ui_top_right"),
         Node {
-            top: Val::Px(10.0),
+            top: Val::Px(5.0),
             right: Val::Px(10.0),
             position_type: PositionType::Absolute,
-            flex_direction: FlexDirection::Row,
+            flex_direction: FlexDirection::Column,
             ..default()
         },
         children![
             (
-                Text::new("Balls:"),
-                TextFont {
-                    font_size,
+                Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(4.0),
                     ..default()
-                }
+                },
+                children![
+                    (
+                        Text::new("Level:"),
+                        TextFont {
+                            font_size,
+                            ..default()
+                        },
+                        TextColor(tailwind::GRAY_400.into()),
+                    ),
+                    (
+                        UiCurrentLevelText,
+                        Text::new("0"),
+                        TextFont {
+                            font_size,
+                            ..default()
+                        },
+                        TextColor(tailwind::GRAY_400.into()),
+                    )
+                ]
             ),
             (
-                UiBallsText,
-                Text::new("0"),
-                TextFont {
-                    font_size,
+                Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(4.0),
                     ..default()
-                }
+                },
+                children![
+                    (
+                        Text::new("Balls:"),
+                        TextFont {
+                            font_size,
+                            ..default()
+                        },
+                        TextColor(tailwind::RED_300.into()),
+                    ),
+                    (
+                        UiBallsText,
+                        Text::new("0"),
+                        TextFont {
+                            font_size,
+                            ..default()
+                        },
+                        TextColor(tailwind::RED_300.into()),
+                    )
+                ]
             )
         ],
     ));
@@ -168,12 +205,14 @@ pub fn update_ui(
         Single<&mut Text, With<UiCoinsText>>,
         Single<&mut Text, With<UiBallsText>>,
         Single<&mut Text, With<UiPointsForNextLevel>>,
+        Single<&mut Text, With<UiCurrentLevelText>>,
     )>,
 ) {
     set.p0().0 = format!("{}", player.points);
     set.p1().0 = format!("{}", player.coins);
     set.p2().0 = format!("{}", player.balls_left);
     set.p3().0 = format!("{}", player.point_for_next_level);
+    set.p4().0 = format!("{}", player.current_level);
 }
 
 const NORMAL_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);

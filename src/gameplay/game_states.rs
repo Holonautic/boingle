@@ -20,5 +20,6 @@ pub enum LevelState {
     ShootBall,
     BallBouncing,
     EndOfRound,
-    LevelOver,
+    Shop,
+    GameOver,
 }

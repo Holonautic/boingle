@@ -177,8 +177,6 @@ pub fn ball_left_play_area_system(
         if player.balls_left > 0 {
             player.balls_left -= 1;
             next_state.set(LevelState::EndOfRound)
-        } else {
-            next_state.set(LevelState::LevelOver)
         }
     }
 }
@@ -194,15 +192,19 @@ pub fn on_gadget_card_selected(
     for entity in q_cards.iter() {
         commands.entity(entity).despawn();
     }
-    
 
     let gadget_entity = trigger
         .gadget_card
         .spawn_widget(&mut commands, &gadget_image_resource);
     commands.entity(gadget_entity).insert(Preview);
     player.current_widget = Some(gadget_entity);
-    let index = player.current_hand.iter().position(|card| card == &trigger.gadget_card).unwrap();
-    player.current_hand.remove(index);
+    let index = player
+        .current_hand
+        .iter()
+        .position(|card| card == &trigger.gadget_card)
+        .unwrap();
+    let used_card =  player.current_hand.remove(index);
+    player.discard_pile.push(used_card);
 }
 
 pub fn clamp_max_ball_velocity(mut q_ball: Query<&mut LinearVelocity, With<PlayerBall>>) {
@@ -285,8 +287,22 @@ pub fn end_of_round_system(
     mut next_state: ResMut<NextState<LevelState>>,
 ) {
     player.points_last_round = player.points;
+
+    info!("We are at the end of round");
+    if player.points >= player.point_for_next_level {
+        info!("We are going to the shop");
+
+        next_state.set(LevelState::Shop);
+    } else if player.balls_left > 0{
+        info!("We are placing a widget");
+
+        next_state.set(LevelState::PlaceWidget);
+    } else {
+        info!("We are gameover");
+
+        next_state.set(LevelState::GameOver);
+    }
     player.points = 0;
-    next_state.set(LevelState::PlaceWidget);
 
 
     for (entity, shrink, transform) in shrink_at_end_of_round_query.iter_mut() {
@@ -301,7 +317,6 @@ pub fn end_of_round_system(
             },
         ));
     }
-    
 
     for (entity, mut remaining_rounds) in remaining_rounds_query.iter_mut() {
         **remaining_rounds -= 1;
@@ -310,4 +325,17 @@ pub fn end_of_round_system(
             commands.entity(entity).despawn();
         }
     }
+}
+
+pub fn on_enter_shop(
+    mut player: Single<&mut Player>,
+    mut next_state: ResMut<NextState<LevelState>>,
+) {
+    player.balls_left += 3;
+    next_state.set(LevelState::PlaceWidget);
+}
+pub fn on_exit_shop(mut player: Single<&mut Player>) {
+    player.current_level += 1;
+    player.point_for_next_level = Player::points_for_level(player.current_level);
+    info!("We are exiting the shop level: {}, points: {}", player.current_level, player.point_for_next_level);
 }
