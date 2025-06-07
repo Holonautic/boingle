@@ -93,7 +93,7 @@ impl BallCannon {
 
     pub fn bundle() -> impl Bundle {
         (
-     
+            BallCannon::default(),
             Collider::rectangle(25.0, 50.0),
             RigidBody::Static,
             observers![BallCannon::on_pressed, BallCannon::on_released],
@@ -116,7 +116,6 @@ impl BallCannon {
     fn on_released(
         trigger: Trigger<Pointer<Released>>,
         mut commands: Commands,
-        asset_server: Res<AssetServer>,
         mut q_spitter: Query<(&mut BallCannon, &Transform)>,
         state: Res<State<LevelState>>,
         mut next_state: ResMut<NextState<LevelState>>,
@@ -204,7 +203,6 @@ pub fn spawn_widget_card(
         })
         .observe(
             |trigger: Trigger<Pointer<Over>>,
-             mut commands: Commands,
              q_children: Query<&Children>,
              mut q_card_border: Query<&mut ShapeFill, With<CardBorder>>| {
                 for child in q_children.get(trigger.target).unwrap().iter() {

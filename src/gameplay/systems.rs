@@ -5,7 +5,6 @@ use crate::gameplay::events::{OnCoinCollected, OnGadgetCardSelected};
 use crate::gameplay::game_states::LevelState;
 use crate::general::resources::GameCursor;
 use avian2d::prelude::*;
-use bevy::asset::AssetServer;
 use bevy::color::palettes::tailwind;
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
@@ -15,8 +14,6 @@ use std::f32::consts::TAU;
 
 pub fn basic_setup(
     mut commands: Commands,
-    game_cursor: Res<GameCursor>,
-    asset_resources: Res<GameResources>,
 ) {
     commands.spawn((Name::new("Player"), Player::new(5)));
 }
@@ -80,7 +77,7 @@ pub fn widget_placement_system(
 pub fn increase_power_gauge_system(
     time: Res<Time>,
     mut q_spitter: Query<(&mut BallCannon, &Children), Without<IndicatorGauge>>,
-    mut q_indicator: Query<(&mut Transform), With<IndicatorGauge>>,
+    mut q_indicator: Query<&mut Transform, With<IndicatorGauge>>,
 ) {
     for (mut spitter, children) in q_spitter.iter_mut() {
         if !spitter.is_increasing_power {
@@ -211,7 +208,7 @@ pub fn on_coin_collected(
 
 pub fn on_gadget_deactivated_removed(
     trigger: Trigger<OnRemove, GadgetDeactivated>,
-    mut gadget_deactivated_query: Query<(&mut Sprite), With<Gadget>>,
+    mut gadget_deactivated_query: Query<&mut Sprite, With<Gadget>>,
 ) {
     let Ok(mut sprite) = gadget_deactivated_query.get_mut(trigger.target()) else {
         return;
@@ -220,7 +217,7 @@ pub fn on_gadget_deactivated_removed(
 }
 pub fn on_gadget_deactivated_added(
     trigger: Trigger<OnAdd, GadgetDeactivated>,
-    mut gadget_deactivated_query: Query<(&mut Sprite), With<Gadget>>,
+    mut gadget_deactivated_query: Query<&mut Sprite, With<Gadget>>,
 ) {
     let Ok(mut sprite) = gadget_deactivated_query.get_mut(trigger.target()) else {
         return;
@@ -254,36 +251,4 @@ pub fn restarting_level(
     player.reset();
 
     next_state.set(LevelState::PlaceWidget);
-}
-
-
-#[hot]
-fn spawn_ball(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    input: Res<ButtonInput<KeyCode>>,
-    ball_query: Query<Entity, With<PlayerBall>>,
-) {
-    if !input.just_pressed(KeyCode::Space) {
-        return;
-    }
-
-    for entity in ball_query.iter() {
-        commands.entity(entity).despawn();
-    }
-
-    let ball_image = asset_server.load("sprites/ball_blue_small.png");
-    commands.spawn((
-        Name::new("ball_blue_small"),
-        PlayerBall,
-        Sprite::from_image(ball_image),
-        Transform {
-            translation: Vec3::new(0., 300.0, 0.),
-            rotation: Quat::from_rotation_z(TAU * 0.25),
-            scale: Vec3::splat(0.5),
-        },
-        RigidBody::Dynamic,
-        Restitution::new(0.99),
-        Collider::circle(30.0),
-    ));
 }

@@ -11,7 +11,7 @@ pub struct TestHookComponent {
     pub some_text: String,
 }
 
-fn on_add_test(mut world: DeferredWorld,
+fn on_add_test(world: DeferredWorld,
                context: HookContext) {
     let thing = world.get::<TestHookComponent>(context.entity).unwrap();
     info!("well it seems the hook worked {}",thing.some_text);

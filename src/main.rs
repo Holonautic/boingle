@@ -4,7 +4,6 @@ mod gameplay;
 mod general;
 
 use crate::gadgets::resources::GameResources;
-use crate::gadgets::*;
 use crate::game_ui::GameUiPlugin;
 use crate::gameplay::GameplayPlugin;
 use crate::gameplay::components::*;
@@ -15,7 +14,6 @@ use avian2d::math::Vector;
 use avian2d::prelude::*;
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rand::prelude::*;
 use bevy_simple_subsecond_system::prelude::*;
 use bevy_vector_shapes::Shape2dPlugin;
@@ -71,8 +69,6 @@ pub fn load_assets(
 #[hot(rerun_on_hot_patch = true)]
 pub fn main_setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     previous_setup: Query<Entity, With<DestroyOnHot>>,
     mut rng: GlobalEntropy<WyRand>,
     game_resources: Res<GameResources>,
@@ -80,14 +76,6 @@ pub fn main_setup(
     for entity in previous_setup.iter() {
         commands.entity(entity).despawn();
     }
-
-    commands.spawn(TestHookComponent {
-        some_text: "Franklin".to_owned(),
-    });
-    commands.spawn(TestHookComponent {
-        some_text: "George".to_owned(),
-    });
-
     commands.spawn((DestroyOnHot, Name::new("main camera"), MainCamera, Camera2d));
 
     let x_position = game_resources.play_area.x - 0.0;

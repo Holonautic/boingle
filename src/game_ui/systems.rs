@@ -172,7 +172,7 @@ pub fn spawn_level_over_ui(
                 TextShadow::default(),
             )],
             observers![
-                (|_: Trigger<Pointer<Click>>,
+                |_: Trigger<Pointer<Click>>,
                   mut commands: Commands,
                   ui_level_over_query: Query<Entity, With<UiLevelOver>>,
                   mut next_state: ResMut<NextState<LevelState>>| {
@@ -180,7 +180,7 @@ pub fn spawn_level_over_ui(
                         commands.entity(entity).despawn();
                     }
                     next_state.set(LevelState::LevelStart);
-                })
+                }
             ]
         )],
     ));
@@ -192,14 +192,11 @@ pub fn button_system(
             &Interaction,
             &mut BackgroundColor,
             &mut BorderColor,
-            &Children,
         ),
         (Changed<Interaction>, With<Button>),
     >,
-    mut text_query: Query<&mut Text>,
 ) {
-    for (interaction, mut color, mut border_color, children) in &mut interaction_query {
-        let mut text = text_query.get_mut(children[0]).unwrap();
+    for (interaction, mut color, mut border_color) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
                 *color = PRESSED_BUTTON.into();

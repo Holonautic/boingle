@@ -63,11 +63,11 @@ pub fn on_coins_spawn_from_bumper(
 pub fn on_bumper_hit(
     trigger: Trigger<OnCollisionStart>,
     mut commands: Commands,
-    mut bumper_query: Query<(Entity, &Bumper, &mut Gadget, &mut Sprite)>,
+    mut bumper_query: Query<(Entity, &Bumper, &mut Gadget)>,
     mut q_ball: Query<&mut LinearVelocity, With<PlayerBall>>,
     mut player: Single<&mut Player>,
 ) {
-    let Ok((entity, bumper, mut gadget, mut sprite)) = bumper_query.get_mut(trigger.target())
+    let Ok((entity, bumper, mut gadget)) = bumper_query.get_mut(trigger.target())
     else {
         return;
     };
