@@ -1,15 +1,18 @@
 use crate::gadgets::resources::GameResources;
 use crate::gadgets::*;
-use crate::gameplay::components::BallCannon;
+use crate::gameplay::components::{BallCannon, DestroyOnStandingStill};
 use crate::gameplay::events::*;
 use crate::general::components::SpriteVisualOf;
+use avian2d::parry::na::DimAdd;
 use avian2d::prelude::*;
-use bevy::asset::io::ErasedAssetWriter;
 use bevy::ecs::component::HookContext;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
+use bevy::text::TextBounds;
 use bevy_bundled_observers::observers;
 use std::fmt::{Display, Formatter};
+use std::time::Duration;
 
 #[derive(Component, Debug, Clone, Reflect, Hash, PartialEq, Eq, Copy)]
 pub enum GadgetType {
@@ -36,14 +39,14 @@ impl GadgetType {
             GadgetType::BallCannon => commands.spawn(BallCannon::bundle()).id(),
         }
     }
-    
+
     pub fn description(&self) -> &'static str {
         match self {
-            GadgetType::SquareBlock => {"Points: 5x1"}
-            GadgetType::WideBlock => {"Points: 5x1"}
-            GadgetType::Bumper => {"Points: 3x3"}
-            GadgetType::CoinBumper => {"Spawns Coins"}
-            GadgetType::BallCannon => {"Click to Spawns Ball"}
+            GadgetType::SquareBlock => "Points: 5x1",
+            GadgetType::WideBlock => "Points: 5x1",
+            GadgetType::Bumper => "Points: 3x3",
+            GadgetType::CoinBumper => "Spawns Coins",
+            GadgetType::BallCannon => "Click to Spawns Ball",
         }
     }
 }
@@ -213,6 +216,7 @@ impl CollectibleType {
 #[require(Restitution::new(0.99))]
 #[require(Collider::circle(25.0))]
 #[require(Name::new("player_ball"))]
+#[require(DestroyOnStandingStill::new(10.0, Duration::from_secs_f32(3.0)))]
 #[component(on_add=PlayerBall::on_add)]
 pub struct PlayerBall;
 
@@ -220,6 +224,7 @@ impl PlayerBall {
     fn on_add(mut world: DeferredWorld, context: HookContext) {
         let game_resource = world.get_resource::<GameResources>().unwrap();
         let image = game_resource.ball_image.clone();
+
         world
             .commands()
             .entity(context.entity)
@@ -323,3 +328,14 @@ pub struct ShrinkAtEndOfRound(pub f32);
 
 #[derive(Component, Debug, Reflect, Deref, DerefMut)]
 pub struct RemainingRounds(pub usize);
+
+pub struct ActivationTime {
+    pub time: Duration,
+}
+impl ActivationTime {
+    pub fn new(seconds: f32) -> Self {
+        Self {
+            time: Duration::from_secs_f32(seconds),
+        }
+    }
+}

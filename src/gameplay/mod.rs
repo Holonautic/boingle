@@ -17,9 +17,9 @@ impl Plugin for GameplayPlugin {
         app.add_systems(Update, increase_power_gauge_system.run_if(in_state(LevelState::ShootBall)));
         app.add_systems(Update, remove_all_placed_gadgets_system);
         app.add_systems(Update, ball_left_play_area_system.run_if(in_state(LevelState::BallBouncing)));
+        app.add_systems(Update, destroy_when_standing_still_system.run_if(in_state(LevelState::BallBouncing)));
         app.add_systems(FixedPostUpdate, clamp_max_ball_velocity);
 
-        app.add_systems(OnEnter(LevelState::PlaceWidget), show_widget_selection);
         app.add_systems(OnExit(LevelState::PlaceWidget), reactivate_gadgets);
         app.add_systems(OnEnter(LevelState::LevelStart), restarting_level);
         app.add_systems(OnEnter(LevelState::EndOfRound), end_of_round_system);

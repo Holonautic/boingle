@@ -109,56 +109,6 @@ pub fn remove_all_placed_gadgets_system(
     }
 }
 
-#[derive(Component)]
-struct DestroyOnHot;
-#[hot(rerun_on_hot_patch = true)]
-pub fn show_widget_selection(
-    mut commands: Commands,
-    shapes: ShapeCommands,
-    previous_setup: Query<Entity, With<DestroyOnHot>>,
-    gadget_resource: Res<GameResources>,
-    mut player: Single<&mut Player>,
-    mut rng: GlobalEntropy<WyRand>,
-) {
-    for entity in previous_setup.iter() {
-        commands.entity(entity).despawn();
-    }
-    let z_position = 50.0;
-
-    while player.current_hand.len() < 3 {
-        let next_card = player.next_card(&mut rng);
-        player.current_hand.push(next_card);
-    }
-    let card_1_id = spawn_widget_card(
-        player.current_hand[0],
-        &mut commands,
-        &shapes,
-        &gadget_resource,
-    );
-    commands
-        .entity(card_1_id)
-        .insert((DestroyOnHot, Transform::from_xyz(-300.0, 0.0, z_position)));
-
-    let card_2_id = spawn_widget_card(
-        player.current_hand[1],
-        &mut commands,
-        &shapes,
-        &gadget_resource,
-    );
-    commands
-        .entity(card_2_id)
-        .insert((DestroyOnHot, Transform::from_xyz(0.0, 0.0, z_position)));
-
-    let card_3_id = spawn_widget_card(
-        player.current_hand[2],
-        &mut commands,
-        &shapes,
-        &gadget_resource,
-    );
-    commands
-        .entity(card_3_id)
-        .insert((DestroyOnHot, Transform::from_xyz(300.0, 0.0, z_position)));
-}
 #[hot]
 pub fn ball_left_play_area_system(
     mut commands: Commands,
@@ -203,7 +153,7 @@ pub fn on_gadget_card_selected(
         .iter()
         .position(|card| card == &trigger.gadget_card)
         .unwrap();
-    let used_card =  player.current_hand.remove(index);
+    let used_card = player.current_hand.remove(index);
     player.discard_pile.push(used_card);
 }
 
@@ -293,7 +243,7 @@ pub fn end_of_round_system(
         info!("We are going to the shop");
 
         next_state.set(LevelState::Shop);
-    } else if player.balls_left > 0{
+    } else if player.balls_left > 0 {
         info!("We are placing a widget");
 
         next_state.set(LevelState::PlaceWidget);
@@ -303,7 +253,6 @@ pub fn end_of_round_system(
         next_state.set(LevelState::GameOver);
     }
     player.points = 0;
-
 
     for (entity, shrink, transform) in shrink_at_end_of_round_query.iter_mut() {
         commands.entity(entity).insert(transform.ease_to_fn(
@@ -337,5 +286,36 @@ pub fn on_enter_shop(
 pub fn on_exit_shop(mut player: Single<&mut Player>) {
     player.current_level += 1;
     player.point_for_next_level = Player::points_for_level(player.current_level);
-    info!("We are exiting the shop level: {}, points: {}", player.current_level, player.point_for_next_level);
+    info!(
+        "We are exiting the shop level: {}, points: {}",
+        player.current_level, player.point_for_next_level
+    );
+}
+
+pub fn destroy_when_standing_still_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(
+        Entity,
+        &Transform,
+        &LinearVelocity,
+        &mut DestroyOnStandingStill,
+    )>,
+) {
+    for (entity, transform, still, mut destroy) in query.iter_mut() {
+        let Some(last_position) = destroy.last_position else {
+            destroy.last_position = Some(transform.translation);
+            continue;
+        };
+        
+        let threshold_squared = destroy.movement_threshold * destroy.movement_threshold;
+        if transform.translation.distance_squared(last_position) < threshold_squared {
+            destroy.time_since_movement += time.delta();
+        }
+
+        if destroy.time_since_movement > destroy.max_time_standing_still {
+            commands.entity(entity).despawn();
+        }
+        destroy.last_position = Some(transform.translation);
+    }
 }

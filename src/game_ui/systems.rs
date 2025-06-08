@@ -1,13 +1,18 @@
 use crate::game_ui::components::*;
-use crate::gameplay::components::Player;
+use crate::gameplay::components::{spawn_widget_card, GadgetCard, Player};
 use crate::gameplay::events::OnGadgetCardSelected;
 use crate::gameplay::game_states::LevelState;
 use bevy::color::palettes::tailwind;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_bundled_observers::observers;
+use bevy_rand::global::GlobalEntropy;
+use bevy_rand::prelude::WyRand;
 use bevy_simple_subsecond_system::hot;
+use bevy_vector_shapes::painter::ShapeCommands;
 use num_format::{Locale, ToFormattedString};
+use crate::cards::components::ShopCardType;
+use crate::gadgets::resources::GameResources;
 
 #[derive(Component)]
 struct DestroyOnHot;
@@ -303,26 +308,73 @@ pub(super) struct DestroyOnWidgetReload;
 pub fn widget_selection_ui_despawn(
     _: Trigger<OnGadgetCardSelected>,
     mut commands: Commands,
-    destroy_query: Query<Entity, With<DestroyOnWidgetReload>>,
+    destroy_query: Query<Entity, With<UiWidgetSelectionRoot>>,
 ) {
     for entity in destroy_query.iter() {
         commands.entity(entity).despawn();
     }
 }
+
+#[derive(Component)]
+struct DestroyShowWidgetSelectionUi;
 #[hot(rerun_on_hot_patch = true)]
-pub fn widget_selection_ui(
+pub fn show_widget_selection(
     mut commands: Commands,
-    destroy_query: Query<Entity, With<DestroyOnWidgetReload>>,
-    player: Single<&Player>,
+    shapes: ShapeCommands,
+    previous_setup: Query<Entity, With<DestroyOnHot>>,
+    gadget_resource: Res<GameResources>,
+    mut player: Single<&mut Player>,
+    mut rng: GlobalEntropy<WyRand>,
 ) {
-    for entity in destroy_query.iter() {
+    for entity in previous_setup.iter() {
         commands.entity(entity).despawn();
     }
+    let z_position = 50.0;
+
+    while player.current_hand.len() < 3 {
+        let next_card = player.next_card(&mut rng);
+        player.current_hand.push(next_card);
+    }
+    // let card_1_id = spawn_widget_card(
+    //     player.current_hand[0],
+    //     &mut commands,
+    //     &shapes,
+    //     &gadget_resource,
+    // );
+    commands.spawn((
+        GadgetCard {
+            gadget_type: player.current_hand[0].clone(),
+        },
+        ShopCardType::SquareBlockCard
+        ))
+        .insert((DestroyShowWidgetSelectionUi, Transform::from_xyz(-300.0, 0.0, z_position)));
+
+    let card_2_id = spawn_widget_card(
+        player.current_hand[1],
+        &mut commands,
+        &shapes,
+        &gadget_resource,
+    );
+    commands
+        .entity(card_2_id)
+        .insert((DestroyShowWidgetSelectionUi, Transform::from_xyz(0.0, 0.0, z_position)));
+
+    let card_3_id = spawn_widget_card(
+        player.current_hand[2],
+        &mut commands,
+        &shapes,
+        &gadget_resource,
+    );
+    commands
+        .entity(card_3_id)
+        .insert((DestroyShowWidgetSelectionUi, Transform::from_xyz(300.0, 0.0, z_position)));
+    
     let last_round_points_formatted = player.points_last_round.to_formatted_string(&Locale::en);
 
     let font_size = 20.0;
     commands.spawn((
-        DestroyOnWidgetReload,
+        DestroyShowWidgetSelectionUi,
+        UiWidgetSelectionRoot,
         Name::new("widget_selection_ui"),
         Node {
             width: Val::Percent(100.0),
@@ -360,4 +412,17 @@ pub fn widget_selection_ui(
             ]
         ),],
     ));
+}
+pub fn create_shop_ui(mut commands: Commands, 
+                      player: Single<&Player>,
+                      gadget_resource: Res<GameResources>) {
+    // let card_entity = spawn_widget_card(
+    //     player.current_hand[0],
+    //     &mut commands,
+    //     &shapes,
+    //     &gadget_resource,
+    // );
+    // commands
+    //     .entity(card_entity)
+    //     .insert((DestroyShowWidgetSelectionUi, Transform::from_xyz(-300.0, 0.0, z_position)));
 }

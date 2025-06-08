@@ -2,6 +2,8 @@ mod gadgets;
 mod game_ui;
 mod gameplay;
 mod general;
+mod cards;
+mod experiments;
 
 use crate::gadgets::components::{Block, GadgetType, SquareBlock, WideBlock};
 use crate::gadgets::resources::GameResources;
@@ -23,6 +25,8 @@ use gameplay::game_states::*;
 use rand::Rng;
 use std::f32::consts::TAU;
 use bevy_easings::EasingsPlugin;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use crate::experiments::ExperimentsPlugin;
 
 fn main() -> AppExit {
     let mut app = App::new();
@@ -37,7 +41,7 @@ fn main() -> AppExit {
     app.add_plugins(PhysicsPlugins::default());
     app.add_plugins(PhysicsPickingPlugin::default());
     app.add_plugins(PhysicsDebugPlugin::default());
-    // app.add_plugins(WorldInspectorPlugin::new());
+    app.add_plugins(WorldInspectorPlugin::new());
     app.add_plugins(EasingsPlugin::default());
     app.insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0));
     app.insert_resource(GameResources::default());
@@ -45,13 +49,17 @@ fn main() -> AppExit {
     app.add_plugins(GeneralPlugin);
     app.add_plugins(GameplayPlugin);
     app.add_plugins(GameUiPlugin);
+    app.add_plugins(ExperimentsPlugin);
 
     //game states
     app.insert_state(AppState::Loading);
     app.add_sub_state::<LevelState>();
 
     app.add_systems(OnEnter(AppState::Loading), load_assets);
-    app.add_systems(OnEnter(AppState::InGame), main_setup);
+    app.add_systems(OnEnter(AppState::Startup), startup_setup);
+    app.add_systems(OnEnter(AppState::InGame), main_game_setup);
+
+
 
     app.add_systems(Update, greet);
 
@@ -67,11 +75,20 @@ pub fn load_assets(
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     gadget_resource.setup(&asset_server);
-    next_state.set(AppState::InGame);
+    next_state.set(AppState::Startup);
+}
+
+pub fn startup_setup(mut commands: Commands, mut next_state: ResMut<NextState<AppState>>,
+) {
+    commands.spawn((Name::new("main camera"), MainCamera, Camera2d));
+    next_state.set(AppState::Experiments);
+    // next_state.set(AppState::InGame);
+
+
 }
 
 #[hot(rerun_on_hot_patch = true)]
-pub fn main_setup(
+pub fn main_game_setup(
     mut commands: Commands,
     previous_setup: Query<Entity, With<DestroyOnHot>>,
     mut rng: GlobalEntropy<WyRand>,
@@ -80,7 +97,6 @@ pub fn main_setup(
     for entity in previous_setup.iter() {
         commands.entity(entity).despawn();
     }
-    commands.spawn((DestroyOnHot, Name::new("main camera"), MainCamera, Camera2d));
 
     let x_position = game_resources.play_area.x - 0.0;
     let y_min_max = game_resources.play_area.y - 0.0;

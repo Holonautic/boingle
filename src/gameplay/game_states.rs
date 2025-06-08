@@ -6,8 +6,10 @@ use bevy::prelude::*;
 pub enum AppState {
     #[default]
     Loading,
+    Startup,
     Menu,
     InGame,
+    Experiments,
 }
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]

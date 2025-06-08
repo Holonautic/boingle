@@ -14,7 +14,9 @@ impl Plugin for GameUiPlugin {
         app.add_systems(Update, button_system);
         
         app.add_systems(OnEnter(LevelState::GameOver), spawn_level_over_ui);
-        app.add_systems(OnEnter(LevelState::PlaceWidget), widget_selection_ui);
+        app.add_systems(OnEnter(LevelState::PlaceWidget), show_widget_selection);
+        app.add_systems(OnEnter(LevelState::Shop), create_shop_ui);
+
         app.add_observer(widget_selection_ui_despawn);
 
 

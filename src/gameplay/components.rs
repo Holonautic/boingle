@@ -10,10 +10,11 @@ use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::text::TextBounds;
 use bevy_bundled_observers::observers;
-use bevy_vector_shapes::prelude::*;
-use std::f32::consts::TAU;
 use bevy_rand::prelude::*;
+use bevy_vector_shapes::prelude::*;
 use rand::prelude::SliceRandom;
+use std::f32::consts::TAU;
+use std::time::Duration;
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct Player {
@@ -21,7 +22,7 @@ pub struct Player {
     pub current_hand: Vec<GadgetType>,
     pub widget_deck: Vec<GadgetType>,
     pub discard_pile: Vec<GadgetType>,
-    starter_deck:  Vec<GadgetType>,
+    starter_deck: Vec<GadgetType>,
     pub points: usize,
     pub points_last_round: usize,
     pub coins: usize,
@@ -57,7 +58,6 @@ impl Player {
             point_for_next_level: Player::points_for_level(0),
             ..default()
         }
-
     }
 
     pub fn points_for_level(level: usize) -> usize {
@@ -95,7 +95,6 @@ impl Player {
         self.widget_deck.shuffle(rng);
         self.discard_pile.clear();
         self.current_hand.clear();
-
     }
 }
 #[derive(Component, Debug)]
@@ -204,7 +203,7 @@ pub struct CardBorder;
 
 #[derive(Component, Debug, Reflect)]
 pub struct GadgetCard {
-    gadget_type: GadgetType,
+    pub gadget_type: GadgetType,
 }
 
 pub fn spawn_widget_card(
@@ -300,4 +299,35 @@ pub fn spawn_widget_card(
             },
         )
         .id()
+}
+
+#[derive(Component, Debug, Reflect, Default)]
+pub struct DestroyOnStandingStill {
+    pub last_position: Option<Vec3>,
+    pub movement_threshold: f32,
+    pub max_time_standing_still: Duration,
+    pub time_since_movement: Duration,
+}
+impl DestroyOnStandingStill {
+    pub fn new(movement_threshold: f32, max_time_standing_still: Duration) -> Self {
+        Self {
+            movement_threshold,
+            max_time_standing_still,
+            ..default()
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct CardCatalog {}
+
+impl CardCatalog {
+    pub fn cards_for_level(level: usize) -> Vec<GadgetCard> {
+        // match level {
+        //     1 => vec![GadgetType::Bumper, GadgetType::CoinBumper, ]
+        //
+        // }
+        //
+        vec![]
+    }
 }

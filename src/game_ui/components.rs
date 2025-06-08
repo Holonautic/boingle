@@ -26,6 +26,9 @@ pub struct UiCurrentLevelText;
 pub struct UiPointsForNextLevel;
 
 #[derive(Component)]
+pub struct UiWidgetSelectionRoot;
+
+#[derive(Component)]
 #[component(on_add=FloatingScore::on_add)]
 pub struct FloatingScore(pub usize);
 
