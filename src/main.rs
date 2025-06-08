@@ -15,7 +15,6 @@ use crate::general::components::*;
 use avian2d::PhysicsPlugins;
 use avian2d::math::Vector;
 use avian2d::prelude::*;
-use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
 use bevy_rand::prelude::*;
@@ -40,8 +39,8 @@ fn main() -> AppExit {
     app.add_plugins(Shape2dPlugin::default());
     app.add_plugins(PhysicsPlugins::default());
     app.add_plugins(PhysicsPickingPlugin::default());
-    app.add_plugins(PhysicsDebugPlugin::default());
-    app.add_plugins(WorldInspectorPlugin::new());
+    // app.add_plugins(PhysicsDebugPlugin::default());
+    // app.add_plugins(WorldInspectorPlugin::new());
     app.add_plugins(EasingsPlugin::default());
     app.insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0));
     app.insert_resource(GameResources::default());
@@ -81,8 +80,7 @@ pub fn load_assets(
 pub fn startup_setup(mut commands: Commands, mut next_state: ResMut<NextState<AppState>>,
 ) {
     commands.spawn((Name::new("main camera"), MainCamera, Camera2d));
-    next_state.set(AppState::Experiments);
-    // next_state.set(AppState::InGame);
+    next_state.set(AppState::InGame);
 
 
 }

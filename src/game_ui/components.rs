@@ -29,6 +29,12 @@ pub struct UiPointsForNextLevel;
 pub struct UiWidgetSelectionRoot;
 
 #[derive(Component)]
+pub struct Forbidden;
+
+#[derive(Component)]
+pub struct UiShopElement;
+
+#[derive(Component)]
 #[component(on_add=FloatingScore::on_add)]
 pub struct FloatingScore(pub usize);
 

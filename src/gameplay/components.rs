@@ -15,14 +15,15 @@ use bevy_vector_shapes::prelude::*;
 use rand::prelude::SliceRandom;
 use std::f32::consts::TAU;
 use std::time::Duration;
+use crate::cards::components::{ShopCard, ShopCardType};
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct Player {
     pub current_widget: Option<Entity>,
-    pub current_hand: Vec<GadgetType>,
-    pub widget_deck: Vec<GadgetType>,
-    pub discard_pile: Vec<GadgetType>,
-    starter_deck: Vec<GadgetType>,
+    pub current_hand: Vec<ShopCardType>,
+    pub widget_deck: Vec<ShopCardType>,
+    pub discard_pile: Vec<ShopCardType>,
+    starter_deck: Vec<ShopCardType>,
     pub points: usize,
     pub points_last_round: usize,
     pub coins: usize,
@@ -35,17 +36,17 @@ pub struct Player {
 impl Player {
     pub fn new(balls_per_level: usize, rng: &mut Entropy<WyRand>) -> Self {
         let starter_deck = vec![
-            GadgetType::WideBlock,
-            GadgetType::WideBlock,
-            GadgetType::WideBlock,
-            GadgetType::WideBlock,
-            GadgetType::SquareBlock,
-            GadgetType::SquareBlock,
-            GadgetType::SquareBlock,
-            GadgetType::SquareBlock,
-            GadgetType::Bumper,
-            GadgetType::Bumper,
-            GadgetType::CoinBumper,
+            ShopCardType::WideBlockCard,
+            ShopCardType::WideBlockCard,
+            ShopCardType::WideBlockCard,
+            ShopCardType::WideBlockCard,
+            ShopCardType::SquareBlockCard,
+            ShopCardType::SquareBlockCard,
+            ShopCardType::SquareBlockCard,
+            ShopCardType::SquareBlockCard,
+            ShopCardType::BumperCard,
+            ShopCardType::BumperCard,
+            ShopCardType::CoinBumperCard,
         ];
         let mut widget_deck = starter_deck.clone();
         widget_deck.shuffle(rng);
@@ -65,7 +66,7 @@ impl Player {
         let growth_factor = 2.2_f32;
         (base * growth_factor.powi(level as i32)).round() as usize
     }
-    pub fn next_card(&mut self, rng: &mut Entropy<WyRand>) -> GadgetType {
+    pub fn next_card(&mut self, rng: &mut Entropy<WyRand>) -> ShopCardType {
         if self.widget_deck.is_empty() {
             self.reshuffle_deck(rng)
         }
@@ -90,6 +91,8 @@ impl Player {
         self.coins = 0;
         self.balls_left = self.balls_per_level;
         self.current_level = 0;
+        self.points_last_round = 0;
+        self.point_for_next_level = Player::points_for_level(0);
 
         self.widget_deck = self.starter_deck.clone();
         self.widget_deck.shuffle(rng);
@@ -206,100 +209,100 @@ pub struct GadgetCard {
     pub gadget_type: GadgetType,
 }
 
-pub fn spawn_widget_card(
-    gadget_type: GadgetType,
-    commands: &mut Commands,
-    shapes: &ShapeCommands,
-    gadget_resource: &GameResources,
-) -> Entity {
-    commands
-        .spawn((
-            GadgetCard {
-                gadget_type: gadget_type.clone(),
-            },
-            Transform::default(),
-            Visibility::Visible,
-            Name::new("Widget Selector"),
-            Collider::rectangle(130.0, 190.0),
-            children![
-                (
-                    Transform::from_xyz(0.0, 40.0, 10.0),
-                    gadget_resource.card_sprite(&gadget_type),
-                ),
-                (
-                    Text2d::new(format!("{}", gadget_type)),
-                    TextFont {
-                        font_size: 15.0,
-                        ..default()
-                    },
-                    TextBounds::from(Vec2::new(110.0, 40.0)),
-                    Anchor::TopLeft,
-                    TextLayout::new(JustifyText::Center, LineBreak::WordBoundary),
-                    Transform::from_xyz(-55.0, -20.0, 10.0),
-                ),
-                (
-                    Text2d::new(format!("{}", gadget_type.description())),
-                    TextFont {
-                        font_size: 10.0,
-                        ..default()
-                    },
-                    TextBounds::from(Vec2::new(110.0, 40.0)),
-                    Anchor::TopLeft,
-                    TextLayout::new(JustifyText::Center, LineBreak::WordBoundary),
-                    Transform::from_xyz(-55.0, -60.0, 10.0),
-                )
-            ],
-        ))
-        .with_shape_children(shapes.config(), |shapes| {
-            shapes.cap = Cap::Round;
-            shapes.thickness = 10.0;
-            shapes.corner_radii = Vec4::splat(15.0);
-            shapes.hollow = false;
-            shapes.color = tailwind::GRAY_800.into();
-            shapes.translate(Vec3::Z * -10.0);
-            shapes.rect(Vec2::new(140., 200.));
-
-            shapes.color = tailwind::GRAY_100.into();
-            shapes.hollow = true;
-            shapes.rect(Vec2::new(140., 200.)).insert(CardBorder);
-        })
-        .observe(
-            |trigger: Trigger<Pointer<Over>>,
-             q_children: Query<&Children>,
-             mut q_card_border: Query<&mut ShapeFill, With<CardBorder>>| {
-                for child in q_children.get(trigger.target).unwrap().iter() {
-                    if let Ok(mut shape_fill) = q_card_border.get_mut(child) {
-                        shape_fill.color = tailwind::GRAY_600.into();
-                        return;
-                    }
-                }
-            },
-        )
-        .observe(
-            |trigger: Trigger<Pointer<Out>>,
-             q_children: Query<&Children>,
-             mut q_card_border: Query<&mut ShapeFill, With<CardBorder>>| {
-                for child in q_children.get(trigger.target).unwrap().iter() {
-                    if let Ok(mut shape_fill) = q_card_border.get_mut(child) {
-                        shape_fill.color = tailwind::GRAY_100.into();
-                        return;
-                    }
-                }
-            },
-        )
-        .observe(
-            |trigger: Trigger<Pointer<Click>>,
-             mut commands: Commands,
-             q_card: Query<&GadgetCard>| {
-                let gadget_card = q_card.get(trigger.target).unwrap();
-                commands.trigger_targets(
-                    OnGadgetCardSelected::new(gadget_card.gadget_type.clone()),
-                    trigger.target,
-                );
-            },
-        )
-        .id()
-}
+// pub fn spawn_widget_card(
+//     gadget_type: GadgetType,
+//     commands: &mut Commands,
+//     shapes: &ShapeCommands,
+//     gadget_resource: &GameResources,
+// ) -> Entity {
+//     commands
+//         .spawn((
+//             GadgetCard {
+//                 gadget_type: gadget_type.clone(),
+//             },
+//             Transform::default(),
+//             Visibility::Visible,
+//             Name::new("Widget Selector"),
+//             Collider::rectangle(130.0, 190.0),
+//             children![
+//                 (
+//                     Transform::from_xyz(0.0, 40.0, 10.0),
+//                     gadget_resource.card_sprite(&gadget_type),
+//                 ),
+//                 (
+//                     Text2d::new(format!("{}", gadget_type)),
+//                     TextFont {
+//                         font_size: 15.0,
+//                         ..default()
+//                     },
+//                     TextBounds::from(Vec2::new(110.0, 40.0)),
+//                     Anchor::TopLeft,
+//                     TextLayout::new(JustifyText::Center, LineBreak::WordBoundary),
+//                     Transform::from_xyz(-55.0, -20.0, 10.0),
+//                 ),
+//                 (
+//                     Text2d::new(format!("{}", gadget_type.description())),
+//                     TextFont {
+//                         font_size: 10.0,
+//                         ..default()
+//                     },
+//                     TextBounds::from(Vec2::new(110.0, 40.0)),
+//                     Anchor::TopLeft,
+//                     TextLayout::new(JustifyText::Center, LineBreak::WordBoundary),
+//                     Transform::from_xyz(-55.0, -60.0, 10.0),
+//                 )
+//             ],
+//         ))
+//         .with_shape_children(shapes.config(), |shapes| {
+//             shapes.cap = Cap::Round;
+//             shapes.thickness = 10.0;
+//             shapes.corner_radii = Vec4::splat(15.0);
+//             shapes.hollow = false;
+//             shapes.color = tailwind::GRAY_800.into();
+//             shapes.translate(Vec3::Z * -10.0);
+//             shapes.rect(Vec2::new(140., 200.));
+//
+//             shapes.color = tailwind::GRAY_100.into();
+//             shapes.hollow = true;
+//             shapes.rect(Vec2::new(140., 200.)).insert(CardBorder);
+//         })
+//         .observe(
+//             |trigger: Trigger<Pointer<Over>>,
+//              q_children: Query<&Children>,
+//              mut q_card_border: Query<&mut ShapeFill, With<CardBorder>>| {
+//                 for child in q_children.get(trigger.target).unwrap().iter() {
+//                     if let Ok(mut shape_fill) = q_card_border.get_mut(child) {
+//                         shape_fill.color = tailwind::GRAY_600.into();
+//                         return;
+//                     }
+//                 }
+//             },
+//         )
+//         .observe(
+//             |trigger: Trigger<Pointer<Out>>,
+//              q_children: Query<&Children>,
+//              mut q_card_border: Query<&mut ShapeFill, With<CardBorder>>| {
+//                 for child in q_children.get(trigger.target).unwrap().iter() {
+//                     if let Ok(mut shape_fill) = q_card_border.get_mut(child) {
+//                         shape_fill.color = tailwind::GRAY_100.into();
+//                         return;
+//                     }
+//                 }
+//             },
+//         )
+//         .observe(
+//             |trigger: Trigger<Pointer<Click>>,
+//              mut commands: Commands,
+//              q_card: Query<&ShopCard>| {
+//                 let shop_card = q_card.get(trigger.target).unwrap();
+//                 commands.trigger_targets(
+//                     OnShopCardSelected::new(shop_card.card_type.clone()),
+//                     trigger.target,
+//                 );
+//             },
+//         )
+//         .id()
+// }
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct DestroyOnStandingStill {

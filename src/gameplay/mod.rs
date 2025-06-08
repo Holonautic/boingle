@@ -24,8 +24,6 @@ impl Plugin for GameplayPlugin {
         app.add_systems(OnEnter(LevelState::LevelStart), restarting_level);
         app.add_systems(OnEnter(LevelState::EndOfRound), end_of_round_system);
 
-        app.add_systems(OnEnter(LevelState::Shop), on_enter_shop);
-
         app.add_systems(OnExit(LevelState::Shop), on_exit_shop);
 
         app.add_observer(on_gadget_card_selected);
@@ -33,6 +31,7 @@ impl Plugin for GameplayPlugin {
         
         app.add_observer(on_gadget_deactivated_added);
         app.add_observer(on_gadget_deactivated_removed);
+        app.add_observer(on_click_on_shop_card_system);
 
 
 

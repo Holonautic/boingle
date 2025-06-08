@@ -1,7 +1,10 @@
+use crate::cards::components::*;
+use crate::gadgets::components::CollectibleType::CoinType;
 use crate::gadgets::components::*;
 use crate::gadgets::resources::GameResources;
+use crate::game_ui::components::Forbidden;
 use crate::gameplay::components::*;
-use crate::gameplay::events::{OnCoinCollected, OnGadgetCardSelected};
+use crate::gameplay::events::*;
 use crate::gameplay::game_states::LevelState;
 use crate::general::components::*;
 use crate::general::resources::GameCursor;
@@ -14,6 +17,7 @@ use bevy_rand::prelude::*;
 use bevy_simple_subsecond_system::hot;
 use bevy_vector_shapes::prelude::*;
 use std::f32::consts::TAU;
+use std::time::Duration;
 
 pub fn basic_setup(mut commands: Commands, mut rng: GlobalEntropy<WyRand>) {
     commands.spawn((Name::new("Player"), Player::new(5, &mut rng)));
@@ -135,7 +139,7 @@ pub fn ball_left_play_area_system(
 pub fn on_gadget_card_selected(
     trigger: Trigger<OnGadgetCardSelected>,
     mut commands: Commands,
-    q_cards: Query<Entity, With<GadgetCard>>,
+    q_cards: Query<Entity, With<ShopCard>>,
     mut player: Single<&mut Player>,
     gadget_image_resource: Res<GameResources>,
 ) {
@@ -144,14 +148,16 @@ pub fn on_gadget_card_selected(
     }
 
     let gadget_entity = trigger
-        .gadget_card
+        .shop_card_type
+        .get_gadget_type()
+        .unwrap()
         .spawn_widget(&mut commands, &gadget_image_resource);
     commands.entity(gadget_entity).insert(Preview);
     player.current_widget = Some(gadget_entity);
     let index = player
         .current_hand
         .iter()
-        .position(|card| card == &trigger.gadget_card)
+        .position(|card| card == &trigger.shop_card_type)
         .unwrap();
     let used_card = player.current_hand.remove(index);
     player.discard_pile.push(used_card);
@@ -216,6 +222,7 @@ pub fn restarting_level(
     mut player: Single<&mut Player>,
     mut next_state: ResMut<NextState<LevelState>>,
     mut rng: GlobalEntropy<WyRand>,
+    game_resources: Res<GameResources>,
 ) {
     for entity in q_gadgets.iter() {
         commands.entity(entity).despawn();
@@ -225,6 +232,11 @@ pub fn restarting_level(
     }
 
     player.reset(&mut rng);
+
+    for _ in 0..5 {
+        let position = game_resources.get_random_position_in_play_area(&mut rng);
+        commands.spawn((CollectibleType::coin_bundle(), Transform::from_translation(position.extend(0.0))));
+    }
 
     next_state.set(LevelState::PlaceWidget);
 }
@@ -276,13 +288,6 @@ pub fn end_of_round_system(
     }
 }
 
-pub fn on_enter_shop(
-    mut player: Single<&mut Player>,
-    mut next_state: ResMut<NextState<LevelState>>,
-) {
-    player.balls_left += 3;
-    next_state.set(LevelState::PlaceWidget);
-}
 pub fn on_exit_shop(mut player: Single<&mut Player>) {
     player.current_level += 1;
     player.point_for_next_level = Player::points_for_level(player.current_level);
@@ -307,7 +312,7 @@ pub fn destroy_when_standing_still_system(
             destroy.last_position = Some(transform.translation);
             continue;
         };
-        
+
         let threshold_squared = destroy.movement_threshold * destroy.movement_threshold;
         if transform.translation.distance_squared(last_position) < threshold_squared {
             destroy.time_since_movement += time.delta();
@@ -317,5 +322,49 @@ pub fn destroy_when_standing_still_system(
             commands.entity(entity).despawn();
         }
         destroy.last_position = Some(transform.translation);
+    }
+}
+
+pub fn on_click_on_shop_card_system(
+    trigger: Trigger<OnClickOnShopCard>,
+    shop_card_query: Query<(&ShopCard, &Transform), Without<Forbidden>>,
+    mut player: Single<&mut Player>,
+    mut commands: Commands,
+    game_resources: Res<GameResources>,
+    mut rng: GlobalEntropy<WyRand>,
+) {
+    let Ok((card, transform)) = shop_card_query.get(trigger.target()) else {
+        return;
+    };
+
+    let price = game_resources.get_price_per_card(&card.card_type);
+
+    if price > player.coins {
+        return;
+    }
+    player.coins -= price;
+
+    let transform_ease = transform.ease_to_fn(
+        |start| Transform {
+            translation: Vec3::new(0.0, -800.0, 100.0),
+            ..*start
+        },
+        EaseFunction::QuadraticInOut,
+        EasingType::Once {
+            duration: Duration::from_secs_f32(1.0),
+        },
+    );
+    commands
+        .entity(trigger.target())
+        .insert((transform_ease, Forbidden));
+    commands.entity(trigger.target()).remove::<Collider>();
+
+    match card.card_type {
+        ShopCardType::OneMoreBallCard => player.balls_left += 1,
+        ShopCardType::MoreBallsCard => player.balls_left += game_resources.balls_per_level,
+        _ => {
+            player.discard_pile.push(card.card_type);
+            player.reshuffle_deck(&mut rng);
+        }
     }
 }

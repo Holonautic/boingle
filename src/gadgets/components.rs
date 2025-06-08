@@ -156,7 +156,7 @@ impl CoinBumperGadget {
 #[require(RemainingRounds(3))]
 #[require(ShrinkAtEndOfRound(0.3))]
 pub enum CollectibleType {
-    Coin,
+    CoinType,
 }
 
 #[derive(Component, Debug, Clone, Reflect, Hash, PartialEq, Eq)]
@@ -170,7 +170,7 @@ impl Coin {
     }
     fn on_coin_added(mut world: DeferredWorld, context: HookContext) {
         let game_resource = world.get_resource::<GameResources>().unwrap();
-        let image = game_resource.collectibles_images[&CollectibleType::Coin].clone();
+        let image = game_resource.collectibles_images[&CollectibleType::CoinType].clone();
         let mut sprite = world.get_mut::<Sprite>(context.entity).unwrap();
 
         sprite.image = image;
@@ -184,16 +184,16 @@ impl Coin {
 impl CollectibleType {
     pub fn collider(&self) -> Collider {
         match self {
-            CollectibleType::Coin => Collider::circle(14.0),
+            CollectibleType::CoinType => Collider::circle(14.0),
         }
     }
 
     pub fn coin_bundle() -> impl Bundle {
         (
-            CollectibleType::Coin,
+            CollectibleType::CoinType,
             Coin::new(1),
             Name::new("coin"),
-            CollectibleType::Coin.collider(),
+            CollectibleType::CoinType.collider(),
             CollisionEventsEnabled,
             Sprite {
                 custom_size: Some(Vec2::splat(25.0)),
@@ -216,7 +216,7 @@ impl CollectibleType {
 #[require(Restitution::new(0.99))]
 #[require(Collider::circle(25.0))]
 #[require(Name::new("player_ball"))]
-#[require(DestroyOnStandingStill::new(10.0, Duration::from_secs_f32(3.0)))]
+#[require(DestroyOnStandingStill::new(1.0, Duration::from_secs_f32(5.0)))]
 #[component(on_add=PlayerBall::on_add)]
 pub struct PlayerBall;
 

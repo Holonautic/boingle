@@ -45,7 +45,7 @@ pub fn on_coins_spawn_from_bumper(
         let y = rng.random_range(-y_min_max..=y_min_max) as f32;
         let position = Vec2::new(x, y);
         let intersections = spatial_query.shape_intersections(
-            &CollectibleType::Coin.collider(),
+            &CollectibleType::CoinType.collider(),
             position,
             0.0,
             &SpatialQueryFilter::default(),

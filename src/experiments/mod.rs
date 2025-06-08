@@ -1,5 +1,5 @@
-use crate::cards::components::ShopCardType;
-use crate::gameplay::game_states::AppState;
+use crate::cards::components::{ShopCard, ShopCardType};
+use crate::gameplay::game_states::{AppState, LevelState};
 use bevy::prelude::*;
 use bevy_simple_subsecond_system::hot;
 
@@ -21,6 +21,8 @@ fn register_components(registry: Res<AppTypeRegistry>) {
 #[derive(Component)]
 struct ExperimentSetupDestroyOnReload;
 
+
+
 #[hot(rerun_on_hot_patch = true)]
 pub fn experiments_setup(
     mut commands: Commands,
@@ -30,10 +32,11 @@ pub fn experiments_setup(
         info!("destroying something");
         commands.entity(entity).despawn();
     }
-    info!("Experiments setup");
-    commands.spawn((
-        ExperimentSetupDestroyOnReload,
-        Transform::from_xyz(-200.0, 50.0, 10.0),
-        ShopCardType::SquareBlockCard,
-    ));
+    // info!("Experiments setup");
+    // commands.spawn((
+    //     ExperimentSetupDestroyOnReload,
+    //     Transform::from_xyz(-200.0, 50.0, 10.0),
+    //     ShopCard::new(ShopCardType::SquareBlockCard),
+    // ));
+
 }

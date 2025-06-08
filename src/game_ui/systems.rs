@@ -1,9 +1,10 @@
+use crate::cards::components::{OnClickOnShopCard, ShopCard, ShopCardType};
+use crate::gadgets::resources::GameResources;
 use crate::game_ui::components::*;
-use crate::gameplay::components::{spawn_widget_card, GadgetCard, Player};
+use crate::gameplay::components::*;
 use crate::gameplay::events::OnGadgetCardSelected;
 use crate::gameplay::game_states::LevelState;
 use bevy::color::palettes::tailwind;
-use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy_bundled_observers::observers;
 use bevy_rand::global::GlobalEntropy;
@@ -11,25 +12,27 @@ use bevy_rand::prelude::WyRand;
 use bevy_simple_subsecond_system::hot;
 use bevy_vector_shapes::painter::ShapeCommands;
 use num_format::{Locale, ToFormattedString};
-use crate::cards::components::ShopCardType;
-use crate::gadgets::resources::GameResources;
 
 #[derive(Component)]
 struct DestroyOnHot;
+
+#[derive(Component)]
+struct MainUi;
 
 #[hot(rerun_on_hot_patch = true)]
 pub fn setup_ui(
     mut commands: Commands,
     player: Single<&Player>,
-    destroy_query: Query<Entity, With<DestroyOnHot>>,
+    destroy_query: Query<Entity, With<MainUi>>,
 ) {
+    info!("Setup main ui UI");
     for entity in destroy_query.iter() {
         commands.entity(entity).despawn();
     }
 
     let font_size = 20.0;
     commands.spawn((
-        DestroyOnHot,
+        MainUi,
         Name::new("ui_root"),
         Node {
             top: Val::Px(5.0),
@@ -94,7 +97,7 @@ pub fn setup_ui(
     ));
 
     commands.spawn((
-        DestroyOnHot,
+        MainUi,
         Name::new("next_level_goal_ui"),
         Node {
             width: Val::Percent(100.0),
@@ -136,7 +139,7 @@ pub fn setup_ui(
     ));
 
     commands.spawn((
-        DestroyOnHot,
+        MainUi,
         Name::new("ui_top_right"),
         Node {
             top: Val::Px(5.0),
@@ -220,8 +223,8 @@ pub fn update_ui(
     set.p4().0 = format!("{}", player.current_level);
 }
 
-const NORMAL_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
-const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
+const NORMAL_BUTTON: Color = Color::srgb(0.231, 0.51, 0.965);
+const HOVERED_BUTTON: Color = Color::srgb(0.145, 0.349, 0.843);
 const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 
 #[hot(rerun_on_hot_patch = true)]
@@ -263,7 +266,10 @@ pub fn spawn_level_over_ui(
                     ..default()
                 },
                 TextColor(Color::srgb(0.9, 0.9, 0.9)),
-                TextShadow::default(),
+                TextShadow {
+                    offset: Vec2::new(2.0, 2.0),
+                    ..default()
+                },
             )],
             observers![|_: Trigger<Pointer<Click>>,
                         mut commands: Commands,
@@ -335,94 +341,182 @@ pub fn show_widget_selection(
         let next_card = player.next_card(&mut rng);
         player.current_hand.push(next_card);
     }
-    // let card_1_id = spawn_widget_card(
-    //     player.current_hand[0],
-    //     &mut commands,
-    //     &shapes,
-    //     &gadget_resource,
-    // );
-    commands.spawn((
-        GadgetCard {
-            gadget_type: player.current_hand[0].clone(),
-        },
-        ShopCardType::SquareBlockCard
-        ))
-        .insert((DestroyShowWidgetSelectionUi, Transform::from_xyz(-300.0, 0.0, z_position)));
 
-    let card_2_id = spawn_widget_card(
-        player.current_hand[1],
-        &mut commands,
-        &shapes,
-        &gadget_resource,
-    );
-    commands
-        .entity(card_2_id)
-        .insert((DestroyShowWidgetSelectionUi, Transform::from_xyz(0.0, 0.0, z_position)));
+    let mut x_position = -300.0;
 
-    let card_3_id = spawn_widget_card(
-        player.current_hand[2],
-        &mut commands,
-        &shapes,
-        &gadget_resource,
-    );
-    commands
-        .entity(card_3_id)
-        .insert((DestroyShowWidgetSelectionUi, Transform::from_xyz(300.0, 0.0, z_position)));
-    
+    for card in player.current_hand.iter() {
+        commands.spawn((
+            ShopCard::new(card.clone()),
+            DestroyShowWidgetSelectionUi,
+            Transform::from_xyz(x_position, 0.0, z_position),
+            OnGadgetCardSelected::new(card.clone()),
+        ));
+        x_position += 300.0;
+    }
     let last_round_points_formatted = player.points_last_round.to_formatted_string(&Locale::en);
 
     let font_size = 20.0;
+
+    if player.points_last_round > 0 {
+        commands.spawn((
+            DestroyShowWidgetSelectionUi,
+            UiWidgetSelectionRoot,
+            Name::new("widget_selection_ui"),
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Px(100.0),
+                top: Val::Px(500.0),
+                left: Val::Px(0.0),
+                right: Val::Px(0.0),
+                justify_content: JustifyContent::Center, // center horizontally
+                align_items: AlignItems::Center,         // center vertically within bar
+                flex_direction: FlexDirection::Row,
+                ..default()
+            },
+            children![(
+                Node {
+                    flex_direction: FlexDirection::Row,
+                    column_gap: Val::Px(4.0),
+                    ..default()
+                },
+                children![
+                    (
+                        Text::new("Points Last Round:"),
+                        TextFont {
+                            font_size,
+                            ..default()
+                        }
+                    ),
+                    (
+                        UiPointsText,
+                        Text::new(last_round_points_formatted),
+                        TextFont {
+                            font_size,
+                            ..default()
+                        }
+                    )
+                ]
+            ),],
+        ));
+    }
+}
+
+#[hot(rerun_on_hot_patch = true)]
+pub fn create_shop_ui(
+    mut commands: Commands,
+    player: Single<&Player>,
+    game_resources: Res<GameResources>,
+    mut rng: GlobalEntropy<WyRand>,
+    reload_query: Query<Entity, With<UiShopElement>>,
+) {
+    for entity in reload_query.iter() {
+        commands.entity(entity).despawn();
+    }
+    info!("we are creating shop");
+
+    let cards = game_resources.get_shop_cards_for_level(player.current_level, &mut rng);
+
+    let mut position_x = -300.0;
+    let position_z = 50.0;
+
+    for card in cards.iter() {
+        let price = game_resources.get_price_per_card(card);
+        let price_color = if price > player.coins {
+            Color::from(tailwind::RED_700)
+        } else {
+            Color::from(tailwind::GRAY_50)
+        };
+        let price_text = if price == 0 {
+            "Free!".to_string()
+        } else {
+            format!("Cost: {} Coins", price)
+        };
+        let card_entity = commands
+            .spawn((
+                UiShopElement,
+                Transform::from_xyz(position_x, 0.0, position_z),
+                ShopCard::new(card.clone()),
+                OnClickOnShopCard,
+                children![(
+                    Sprite::from_color(Color::from(tailwind::GRAY_800), Vec2::new(120.0, 25.0)),
+                    Transform::from_xyz(0.0, -130.0, 0.0),
+                    Text2d(price_text),
+                    TextColor(price_color),
+                    TextFont {
+                        font_size: 10.0,
+                        ..default()
+                    },
+                )],
+            ))
+            .id();
+
+        if player.coins < price {
+            commands.entity(card_entity).insert(Forbidden);
+        }
+        position_x += 200.0
+    }
+    let font_size = 30.0;
+    let font_color = Color::from(tailwind::RED_300);
+
     commands.spawn((
-        DestroyShowWidgetSelectionUi,
-        UiWidgetSelectionRoot,
-        Name::new("widget_selection_ui"),
+        UiShopElement,
+        Transform::from_xyz(0.0, 140.0, position_z),
+        Text2d(format!("Shop Level: {}", player.current_level)),
+        TextFont {
+            font_size,
+            ..default()
+        },
+        TextColor(font_color),
+    ));
+
+    commands.spawn((
+        UiShopElement,
+        Pickable::IGNORE,
         Node {
             width: Val::Percent(100.0),
-            height: Val::Px(100.0),
-            top: Val::Px(500.0),
-            left: Val::Px(0.0),
-            right: Val::Px(0.0),
-            justify_content: JustifyContent::Center, // center horizontally
-            align_items: AlignItems::Center,         // center vertically within bar
-            flex_direction: FlexDirection::Row,
+            height: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
             ..default()
         },
         children![(
+            Button,
             Node {
-                flex_direction: FlexDirection::Row,
-                column_gap: Val::Px(4.0),
+                top: Val::Px(240.0),
+                width: Val::Px(180.0),
+                height: Val::Px(55.0),
+                border: UiRect::all(Val::Px(5.0)),
+                position_type: PositionType::Relative,
+                // horizontally center child text
+                justify_content: JustifyContent::Center,
+                // vertically center child text
+                align_items: AlignItems::Center,
                 ..default()
             },
-            children![
-                (
-                    Text::new("Points Last Round:"),
-                    TextFont {
-                        font_size,
-                        ..default()
-                    }
-                ),
-                (
-                    UiPointsText,
-                    Text::new(last_round_points_formatted),
-                    TextFont {
-                        font_size,
-                        ..default()
-                    }
-                )
-            ]
-        ),],
+            BorderColor(Color::BLACK),
+            BorderRadius::MAX,
+            BackgroundColor(NORMAL_BUTTON),
+            children![(
+                Text::new("Exit Shop"),
+                TextFont {
+                    font_size: 20.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.9, 0.9, 0.9)),
+                TextShadow {
+                    offset: Vec2::new(2.0, 2.0),
+                    ..default()
+                },
+            )],
+            observers![|_: Trigger<Pointer<Click>>,
+                        mut commands: Commands,
+                        ui_level_over_query: Query<Entity, With<UiShopElement>>,
+                        mut next_state: ResMut<NextState<LevelState>>| {
+                for entity in ui_level_over_query.iter() {
+                    commands.entity(entity).despawn();
+                }
+                next_state.set(LevelState::PlaceWidget);
+            }]
+        )],
     ));
-}
-pub fn create_shop_ui(mut commands: Commands, 
-                      player: Single<&Player>,
-                      gadget_resource: Res<GameResources>) {
-    // let card_entity = spawn_widget_card(
-    //     player.current_hand[0],
-    //     &mut commands,
-    //     &shapes,
-    //     &gadget_resource,
-    // );
-    // commands
-    //     .entity(card_entity)
-    //     .insert((DestroyShowWidgetSelectionUi, Transform::from_xyz(-300.0, 0.0, z_position)));
 }
