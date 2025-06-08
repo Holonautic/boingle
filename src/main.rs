@@ -1,10 +1,11 @@
+mod cards;
+mod experiments;
 mod gadgets;
 mod game_ui;
 mod gameplay;
 mod general;
-mod cards;
-mod experiments;
 
+use crate::experiments::ExperimentsPlugin;
 use crate::gadgets::components::{Block, GadgetType, SquareBlock, WideBlock};
 use crate::gadgets::resources::GameResources;
 use crate::game_ui::GameUiPlugin;
@@ -15,21 +16,39 @@ use crate::general::components::*;
 use avian2d::PhysicsPlugins;
 use avian2d::math::Vector;
 use avian2d::prelude::*;
+use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
+use bevy_easings::EasingsPlugin;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rand::prelude::*;
 use bevy_simple_subsecond_system::prelude::*;
 use bevy_vector_shapes::Shape2dPlugin;
 use gameplay::game_states::*;
 use rand::Rng;
 use std::f32::consts::TAU;
-use bevy_easings::EasingsPlugin;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use crate::experiments::ExperimentsPlugin;
 
 fn main() -> AppExit {
     let mut app = App::new();
-    app.add_plugins(DefaultPlugins);
+    app.add_plugins(
+        DefaultPlugins
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "Boingle".to_string(),
+                    // Bind to canvas included in `index.html`
+                    canvas: Some("#bevy".to_owned()),
+                    fit_canvas_to_parent: true,
+                    // Tells wasm not to override default event handling, like F5 and Ctrl+R
+                    prevent_default_event_handling: false,
+                    ..default()
+                }),
+                ..default()
+            })
+            .set(AssetPlugin {
+                meta_check: AssetMetaCheck::Never,
+                ..default()
+            }),
+    );
 
     app.add_plugins(EguiPlugin {
         enable_multipass_for_primary_context: true,
@@ -58,8 +77,6 @@ fn main() -> AppExit {
     app.add_systems(OnEnter(AppState::Startup), startup_setup);
     app.add_systems(OnEnter(AppState::InGame), main_game_setup);
 
-
-
     app.add_systems(Update, greet);
 
     app.run()
@@ -77,12 +94,9 @@ pub fn load_assets(
     next_state.set(AppState::Startup);
 }
 
-pub fn startup_setup(mut commands: Commands, mut next_state: ResMut<NextState<AppState>>,
-) {
+pub fn startup_setup(mut commands: Commands, mut next_state: ResMut<NextState<AppState>>) {
     commands.spawn((Name::new("main camera"), MainCamera, Camera2d));
     next_state.set(AppState::InGame);
-
-
 }
 
 #[hot(rerun_on_hot_patch = true)]
@@ -112,7 +126,6 @@ pub fn main_game_setup(
         Transform::from_xyz(x_position, y_position, 0.0)
             .with_rotation(Quat::from_rotation_z(f32::to_radians(angle))),
     ));
-
 }
 
 #[hot]

@@ -6,7 +6,7 @@ edition = "2024"
 
 [dependencies]
 bevy = { version = "0.16", features = ["wayland"] }
-bevy_simple_subsecond_system = { git = "https://github.com/TheBevyFlock/bevy_simple_subsecond_system.git" }
+
 bevy_rand = { version = "0.11.0", features = ["rand_chacha", "wyrand"] }
 rand = "0.9.1"
 bevy_vector_shapes = "0.10"
@@ -15,6 +15,8 @@ bevy-inspector-egui = "0.31.0"
 avian2d = { git = "https://github.com/Jondolf/avian.git" }
 bevy_bundled_observers = "0.2.0"
 num-format = "0.4.4"
+bevy_simple_subsecond_system = { git = "https://github.com/TheBevyFlock/bevy_simple_subsecond_system.git" }
+
 # Compile low-severity logs out of native builds for performance.
 log = { version = "0.4", features = [
     "max_level_debug",
@@ -29,14 +31,17 @@ tracing = { version = "0.1", features = [
 # Your web builds will start failing if you add a dependency that pulls in `getrandom` v0.3+.
 # To fix this, you should tell `getrandom` to use the `wasm_js` backend on Wasm.
 # See: <https://docs.rs/getrandom/0.3.3/getrandom/#webassembly-support>.
-#[target.wasm32-unknown-unknown.dependencies]
-#getrandom = { version = "0.3", features = ["wasm_js"] }
+[target.wasm32-unknown-unknown.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
 # In addition to enabling the `wasm_js` feature, you need to include `--cfg 'getrandom_backend="wasm_js"'`
 # in your rustflags for both local and CI/CD web builds, taking into account that rustflags specified in
 # multiple places are NOT combined (see <https://github.com/rust-lang/cargo/issues/5376>).
 # Alternatively, you can opt out of the rustflags check with this patch:
-#[patch.crates-io]
-#getrandom = { git = "https://github.com/benfrankel/getrandom" }
+[patch.crates-io]
+getrandom = { git = "https://github.com/benfrankel/getrandom" }
+[target.wasm32-unknown-unknown]
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"']
+
 
 [features]
 # Default to a native dev build.
@@ -52,7 +57,7 @@ dev = [
 dev_native = [
     "dev",
     # Enable asset hot reloading for native dev builds.
-    "bevy/file_watcher",
+#    "bevy/file_watcher",
     # Enable embedded asset hot reloading for native dev builds.
     #    "bevy/embedded_watcher",
 ]
@@ -142,4 +147,7 @@ inherits = "dev"
 
 [profile.android-dev]
 inherits = "dev"
+
+
+
 

@@ -17,7 +17,7 @@ use num_format::{Locale, ToFormattedString};
 struct DestroyOnHot;
 
 #[derive(Component)]
-struct MainUi;
+pub struct MainUi;
 
 #[hot(rerun_on_hot_patch = true)]
 pub fn setup_ui(
@@ -322,13 +322,11 @@ pub fn widget_selection_ui_despawn(
 }
 
 #[derive(Component)]
-struct DestroyShowWidgetSelectionUi;
+pub struct DestroyShowWidgetSelectionUi;
 #[hot(rerun_on_hot_patch = true)]
 pub fn show_widget_selection(
     mut commands: Commands,
-    shapes: ShapeCommands,
-    previous_setup: Query<Entity, With<DestroyOnHot>>,
-    gadget_resource: Res<GameResources>,
+    previous_setup: Query<Entity, With<DestroyShowWidgetSelectionUi>>,
     mut player: Single<&mut Player>,
     mut rng: GlobalEntropy<WyRand>,
 ) {
