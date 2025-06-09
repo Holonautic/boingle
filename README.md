@@ -17,6 +17,10 @@ In **Boingle**, you assemble a Rube-Goldberg-style pinball machine using a varie
 - Reach a score threshold to level up and unlock new gadgets in the shop.
 - Strategically place gadgets to trigger high-value **chain reactions** and maximize your score!
 
+---
+
+Made with love in the wonderful [Bevy game engine](https://bevyengine.org/).
+
 ## 📜 License
 
 This project is dual-licensed under either:
@@ -25,7 +29,5 @@ This project is dual-licensed under either:
 - [Apache License, Version 2.0](LICENSE-APACHE)
 
 at your option.
-
----
 
 > Inspired by chaotic physics, clever combos, and the thrill of building your own wild pinball arena.
