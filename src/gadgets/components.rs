@@ -1,64 +1,41 @@
 use crate::gadgets::resources::GameResources;
 use crate::gadgets::*;
-use crate::gameplay::components::{BallCannon, DestroyOnStandingStill};
+use crate::gameplay::components::*;
 use crate::gameplay::events::*;
-use crate::general::components::SpriteVisualOf;
-use avian2d::parry::na::DimAdd;
+use crate::general::components::*;
 use avian2d::prelude::*;
 use bevy::ecs::component::HookContext;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
-use bevy::sprite::Anchor;
-use bevy::text::TextBounds;
 use bevy_bundled_observers::observers;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
 #[derive(Component, Debug, Clone, Reflect, Hash, PartialEq, Eq, Copy)]
 pub enum GadgetType {
-    SquareBlock,
-    WideBlock,
-    Bumper,
-    CoinBumper,
-    BallCannon,
+    SquareBlockType,
+    WideBlockType,
+    BumperType,
+    CoinBumperType,
+    BallCannonType,
+    GravityReverseType,
 }
 
 impl GadgetType {
     pub fn spawn_widget(&self, commands: &mut Commands, asset_resource: &GameResources) -> Entity {
         match self {
-            GadgetType::SquareBlock => commands
+            GadgetType::SquareBlockType => commands
                 .spawn((SquareBlock, Gadget::new(5), PointsOnHit::new(1)))
                 .id(),
-            GadgetType::WideBlock => commands
+            GadgetType::WideBlockType => commands
                 .spawn((WideBlock, Gadget::new(5), PointsOnHit::new(1)))
                 .id(),
-            GadgetType::Bumper => commands
+            GadgetType::BumperType => commands
                 .spawn((Bumper, Gadget::new(3), PointsOnHit::new(3)))
                 .id(),
-            GadgetType::CoinBumper => commands.spawn(CoinBumperGadget::default()).id(),
-            GadgetType::BallCannon => commands.spawn(BallCannon::bundle()).id(),
-        }
-    }
-
-    pub fn description(&self) -> &'static str {
-        match self {
-            GadgetType::SquareBlock => "Points: 5x1",
-            GadgetType::WideBlock => "Points: 5x1",
-            GadgetType::Bumper => "Points: 3x3",
-            GadgetType::CoinBumper => "Spawns Coins",
-            GadgetType::BallCannon => "Click to Spawns Ball",
-        }
-    }
-}
-
-impl Display for GadgetType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GadgetType::SquareBlock => f.write_str("Square Block"),
-            GadgetType::WideBlock => write!(f, "Wide Block"),
-            GadgetType::Bumper => write!(f, "Bumper"),
-            GadgetType::CoinBumper => write!(f, "Coin Bumper"),
-            GadgetType::BallCannon => write!(f, "Ball Cannon"),
+            GadgetType::CoinBumperType => commands.spawn(CoinBumperGadget::default()).id(),
+            GadgetType::BallCannonType => commands.spawn(BallCannon::bundle()).id(),
+            GadgetType::GravityReverseType => commands.spawn(GravityReverseField::new()).id(),
         }
     }
 }
@@ -95,13 +72,18 @@ impl Gadget {
 #[require(Restitution::new(1.5))]
 #[require(Collider::circle(30.0))]
 #[require(CollisionEventsEnabled)]
+#[require(CollisionLayers::new(GameLayer::GadgetsLayer, [
+GameLayer::PlayerBallLayer,
+GameLayer::GadgetsLayer,
+GameLayer::DefaultLayer
+]))]
 #[component(on_add=Bumper::on_add)]
 pub struct Bumper;
 
 impl Bumper {
     fn on_add(mut world: DeferredWorld, context: HookContext) {
         let game_resources = world.resource::<GameResources>();
-        let image = game_resources.gadget_images[&GadgetType::Bumper].clone();
+        let image = game_resources.gadget_images[&GadgetType::BumperType].clone();
         world.commands().spawn((
             ChildOf(context.entity),
             SpriteVisualOf(context.entity),
@@ -112,17 +94,50 @@ impl Bumper {
 }
 
 #[derive(Component, Debug, Reflect)]
+#[require(Transform)]
+#[require(Visibility)]
+#[require(Name::new("gravity_revers_field"))]
+#[require(Collider::rectangle(100.0, 400.0))]
+#[require(CollisionEventsEnabled)]
+#[require(Sensor)]
+#[require(CollisionLayers::new(GameLayer::GadgetFieldsLayer, [GameLayer::PlayerBallLayer]))]
+#[require(Pickable::IGNORE)]
+#[component(on_add=GravityReverseField::on_add)]
+pub struct GravityReverseField {
+    pub time_since_last_emission: Duration,
+}
+impl GravityReverseField {
+    pub fn new() -> Self {
+        Self {
+            time_since_last_emission: Duration::from_secs(0),
+        }
+    }
+
+    fn on_add(mut world: DeferredWorld, context: HookContext) {
+        world.commands().entity(context.entity).insert(observers![
+            on_entering_reverse_gravity_field,
+            on_exiting_reverse_gravity_field
+        ]);
+    }
+}
+
+#[derive(Component, Debug, Reflect)]
 pub struct GadgetDeactivated;
 
 #[derive(Component, Debug, Reflect)]
 #[require(Transform, Visibility)]
 #[require(Name::new("coin_bumper"))]
-#[require(GadgetType::CoinBumper)]
+#[require(GadgetType::CoinBumperType)]
 #[require(Gadget::new(1))]
 #[require(RigidBody::Static)]
 #[require(Restitution::new(2.0))]
 #[require(Collider::circle(29.0))]
 #[require(CollisionEventsEnabled)]
+#[require(CollisionLayers::new(GameLayer::GadgetsLayer, [
+GameLayer::PlayerBallLayer,
+GameLayer::GadgetsLayer,
+GameLayer::DefaultLayer
+]))]
 #[require(BounceOnHit)]
 #[component(on_add=CoinBumperGadget::on_add)]
 pub struct CoinBumperGadget {
@@ -136,7 +151,7 @@ impl Default for CoinBumperGadget {
 impl CoinBumperGadget {
     fn on_add(mut world: DeferredWorld, context: HookContext) {
         let game_resources = world.resource::<GameResources>();
-        let image = game_resources.gadget_images[&GadgetType::CoinBumper].clone();
+        let image = game_resources.gadget_images[&GadgetType::CoinBumperType].clone();
 
         world
             .commands()
@@ -217,8 +232,37 @@ impl CollectibleType {
 #[require(Collider::circle(25.0))]
 #[require(Name::new("player_ball"))]
 #[require(DestroyOnStandingStill::new(1.0, Duration::from_secs_f32(5.0)))]
+#[require(DrawTrajectory::new(1.0))]
+#[require(GravityScale)]
+#[require(CollisionLayers::new(GameLayer::PlayerBallLayer,[
+GameLayer::DefaultLayer,
+GameLayer::GadgetFieldsLayer,
+GameLayer::GadgetsLayer]))
+]
 #[component(on_add=PlayerBall::on_add)]
 pub struct PlayerBall;
+
+#[derive(Component, Debug, Reflect)]
+#[require(RigidBody::Dynamic)]
+#[require(Restitution::new(0.99))]
+#[require(Collider::circle(25.0))]
+#[require(Name::new("player_ball_preview"))]
+#[require(DrawTrajectory::new(3.0))]
+#[require(DestroyOnStandingStill::new(1.0, Duration::from_secs_f32(5.0)))]
+pub struct FakePlayerBall;
+
+#[derive(Component, Debug, Reflect)]
+pub struct DrawTrajectory {
+    pub duration: Duration,
+}
+
+impl DrawTrajectory {
+    pub fn new(seconds: f32) -> Self {
+        Self {
+            duration: Duration::from_secs_f32(seconds),
+        }
+    }
+}
 
 impl PlayerBall {
     fn on_add(mut world: DeferredWorld, context: HookContext) {
@@ -242,6 +286,12 @@ impl PlayerBall {
 #[require(PointsOnHit::new(3))]
 #[require(Gadget::new(3))]
 #[require(CollisionEventsEnabled)]
+#[require(CollisionLayers::new(GameLayer::GadgetsLayer, [
+GameLayer::PlayerBallLayer,
+GameLayer::GadgetsLayer,
+GameLayer::DefaultLayer
+]))]
+#[require(CanBeRotated)]
 #[component(on_add=Block::on_add)]
 pub struct Block {
     pub size: Vec2,
@@ -256,7 +306,7 @@ impl Block {
         let block = world.get::<Block>(context.entity).unwrap();
         let size = block.size;
         let game_resource = world.get_resource::<GameResources>().unwrap();
-        let image = game_resource.gadget_images[&GadgetType::SquareBlock].clone();
+        let image = game_resource.gadget_images[&GadgetType::SquareBlockType].clone();
         let slice_border = 30.0;
         let scale_mode = SpriteImageMode::Sliced(TextureSlicer {
             border: BorderRect::all(slice_border),
@@ -300,7 +350,9 @@ impl PointsOnHit {
 
 #[derive(Component, Debug, Reflect, Default)]
 #[component(on_add=BounceOnHit::on_add)]
-pub struct BounceOnHit;
+pub struct BounceOnHit {
+    pub starting_size: Option<Vec3>,
+}
 
 impl BounceOnHit {
     fn on_add(mut world: DeferredWorld, context: HookContext) {
@@ -339,3 +391,6 @@ impl ActivationTime {
         }
     }
 }
+
+#[derive(Component, Debug, Reflect, Default)]
+pub struct CanBeRotated;

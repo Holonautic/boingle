@@ -2,6 +2,7 @@ use crate::cards::components::*;
 use crate::gadgets::components::CollectibleType::CoinType;
 use crate::gadgets::components::*;
 use crate::gadgets::resources::GameResources;
+use crate::gadgets::systems::on_finish_easing_destroy;
 use crate::game_ui::components::Forbidden;
 use crate::gameplay::components::*;
 use crate::gameplay::events::*;
@@ -12,6 +13,7 @@ use avian2d::prelude::*;
 use bevy::color::palettes::tailwind;
 use bevy::input::mouse::MouseWheel;
 use bevy::prelude::*;
+use bevy_bundled_observers::observers;
 use bevy_easings::{Ease, EaseFunction, EasingType};
 use bevy_rand::prelude::*;
 use bevy_simple_subsecond_system::hot;
@@ -23,14 +25,15 @@ pub fn basic_setup(mut commands: Commands, mut rng: GlobalEntropy<WyRand>) {
     commands.spawn((Name::new("Player"), Player::new(5, &mut rng)));
 }
 
-#[hot]
+// #[hot]
 pub fn widget_placement_system(
     mut commands: Commands,
     game_cursor: Res<GameCursor>,
     mut mouse_scroll_event: EventReader<MouseWheel>,
-    input: Res<ButtonInput<MouseButton>>,
+    mouse_input: Res<ButtonInput<MouseButton>>,
+    key_input: Res<ButtonInput<KeyCode>>,
     mut player: Single<&mut Player>,
-    mut q_gadget: Query<(Entity, &mut Transform, &SpriteVisual, &Collider)>,
+    mut q_gadget: Query<(Entity, &mut Transform, Option<&SpriteVisual>, &Collider, &CollisionLayers, Has<CanBeRotated>)>,
     mut sprite_query: Query<&mut Sprite>,
     spatial_query: SpatialQuery,
     mut next_state: ResMut<NextState<LevelState>>,
@@ -39,42 +42,61 @@ pub fn widget_placement_system(
         return;
     };
 
-    let Ok((widget_entity, mut widget_transform, sprite_visual, collider)) =
+    let Ok((widget_entity, mut widget_transform, sprite_visual, collider, layers, can_be_rotated)) =
         q_gadget.get_mut(current_widget)
     else {
         return;
     };
     let mut is_intersecting = false;
 
+
+
+    let filter = SpatialQueryFilter::from_mask(layers.filters);
+
     for intersection in spatial_query.shape_intersections(
         collider,
         widget_transform.translation.xy(),
         widget_transform.rotation.to_euler(EulerRot::XYZ).2,
-        &SpatialQueryFilter::default(),
+        &filter,
     ) {
         if intersection != current_widget {
             is_intersecting = true;
         }
     }
 
-    for scroll_event in mouse_scroll_event.read() {
-        widget_transform.rotate_z(TAU / 180.0 * scroll_event.y);
+    if can_be_rotated {
+        for scroll_event in mouse_scroll_event.read() {
+            widget_transform.rotate_z(TAU / 180.0 * scroll_event.y);
+        }
+
+        if key_input.pressed(KeyCode::KeyR) {
+            widget_transform.rotate_z(TAU / 180.0);
+        }
+
     }
 
-    let mut sprite = sprite_query.get_mut(**sprite_visual).unwrap();
-    if is_intersecting {
-        sprite.color = tailwind::RED_500.into();
-    } else {
-        sprite.color = Color::WHITE;
+
+    if let Some(sprite_visual) = sprite_visual {
+        let mut sprite = sprite_query.get_mut(**sprite_visual).unwrap();
+        if is_intersecting {
+            sprite.color = tailwind::RED_500.into();
+        } else {
+            sprite.color = Color::WHITE;
+        }
     }
+
     widget_transform.translation = game_cursor.position;
 
-    if !is_intersecting && input.just_pressed(MouseButton::Left) {
+    if !is_intersecting && mouse_input.just_pressed(MouseButton::Left) {
         commands
             .entity(widget_entity)
             .insert((PlayerPlacedGadget, Pickable::IGNORE))
             .remove::<Preview>();
-        sprite.color.set_alpha(1.0);
+
+        if let Some(sprite_visual) = sprite_visual {
+            let mut sprite = sprite_query.get_mut(**sprite_visual).unwrap();
+            sprite.color.set_alpha(1.0);
+        }
         player.current_widget = None;
         next_state.set(LevelState::ShootBall);
     }
@@ -97,19 +119,6 @@ pub fn increase_power_gauge_system(
         let power_gauge = spitter.power / spitter.max_power;
         indicator_transform.translation = Vec3::new(0.0, -(1.0 - power_gauge) * 25.0, 0.1);
         indicator_transform.scale = Vec3::new(1.0, power_gauge, 1.0);
-    }
-}
-
-#[hot]
-pub fn remove_all_placed_gadgets_system(
-    mut commands: Commands,
-    input: Res<ButtonInput<KeyCode>>,
-    q_gadgets: Query<Entity, With<PlayerPlacedGadget>>,
-) {
-    if input.just_pressed(KeyCode::KeyR) {
-        for entity in q_gadgets.iter() {
-            commands.entity(entity).despawn();
-        }
     }
 }
 
@@ -139,11 +148,12 @@ pub fn ball_left_play_area_system(
 pub fn on_gadget_card_selected(
     trigger: Trigger<OnGadgetCardSelected>,
     mut commands: Commands,
-    q_cards: Query<Entity, With<ShopCard>>,
+    shop_cards_query: Query<Entity, With<ShopCard>>,
     mut player: Single<&mut Player>,
     gadget_image_resource: Res<GameResources>,
+    mut next_state: ResMut<NextState<LevelState>>,
 ) {
-    for entity in q_cards.iter() {
+    for entity in shop_cards_query.iter() {
         commands.entity(entity).despawn();
     }
 
@@ -161,6 +171,8 @@ pub fn on_gadget_card_selected(
         .unwrap();
     let used_card = player.current_hand.remove(index);
     player.discard_pile.push(used_card);
+
+    next_state.set(LevelState::PlaceWidget);
 }
 
 pub fn clamp_max_ball_velocity(mut q_ball: Query<&mut LinearVelocity, With<PlayerBall>>) {
@@ -217,28 +229,54 @@ pub fn reactivate_gadgets(mut commands: Commands, mut gadgets_query: Query<(Enti
 
 pub fn restarting_level(
     mut commands: Commands,
-    q_gadgets: Query<Entity, With<PlayerPlacedGadget>>,
-    collectible_query: Query<Entity, With<CollectibleType>>,
+    collectible_query: Query<
+        Entity,
+        Or<(
+            With<CollectibleType>,
+            With<DecayOverTime>,
+            With<PlayerPlacedGadget>,
+        )>,
+    >,
+    cannon_query: Single<(&BallCannon, &Transform)>,
     mut player: Single<&mut Player>,
-    mut next_state: ResMut<NextState<LevelState>>,
     mut rng: GlobalEntropy<WyRand>,
     game_resources: Res<GameResources>,
 ) {
-    for entity in q_gadgets.iter() {
-        commands.entity(entity).despawn();
-    }
     for entity in collectible_query.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
-
     player.reset(&mut rng);
 
-    for _ in 0..5 {
-        let position = game_resources.get_random_position_in_play_area(&mut rng);
-        commands.spawn((CollectibleType::coin_bundle(), Transform::from_translation(position.extend(0.0))));
-    }
+    commands.trigger(RequestToPlaceCoins::new(5));
 
-    next_state.set(LevelState::PlaceWidget);
+    let (cannon, canon_transform) = cannon_query.into_inner();
+    let forward = canon_transform.rotation * Vec3::Y;
+    let forward_2d = forward.truncate();
+    commands.spawn((
+        FakePlayerBall,
+        Transform::from_translation(canon_transform.translation).with_scale(Vec3::splat(0.5)),
+        LinearVelocity(forward_2d * cannon.power),
+    ));
+
+    // next_state.set(LevelState::PlaceWidget);
+}
+
+pub fn draw_trajectory_system(
+    mut commands: Commands,
+    trajectory_query: Query<(Entity, &Transform, &DrawTrajectory)>,
+    mut shapes: ShapeCommands,
+    mut next_state: ResMut<NextState<LevelState>>,
+) {
+    for (entity, transform, draw_trajectory) in trajectory_query.iter() {
+        if transform.translation.y < -800.0 {
+            commands.entity(entity).despawn();
+            next_state.set(LevelState::WidgetSelection);
+        }
+        shapes.transform.translation = transform.translation;
+        shapes
+            .circle(1.0)
+            .insert(DecayOverTime::new(draw_trajectory.duration.as_secs_f32()));
+    }
 }
 
 pub fn end_of_round_system(
@@ -248,23 +286,22 @@ pub fn end_of_round_system(
     mut remaining_rounds_query: Query<(Entity, &mut RemainingRounds)>,
     mut next_state: ResMut<NextState<LevelState>>,
 ) {
-    player.points_last_round = player.points;
+    player.points_last_round = player.points_this_round;
+    player.points_this_round = 0;
 
     info!("We are at the end of round");
     if player.points >= player.point_for_next_level {
         info!("We are going to the shop");
-
         next_state.set(LevelState::Shop);
     } else if player.balls_left > 0 {
         info!("We are placing a widget");
 
-        next_state.set(LevelState::PlaceWidget);
+        next_state.set(LevelState::WidgetSelection);
     } else {
         info!("We are gameover");
-
         next_state.set(LevelState::GameOver);
     }
-    player.points = 0;
+    // player.points = 0;
 
     for (entity, shrink, transform) in shrink_at_end_of_round_query.iter_mut() {
         commands.entity(entity).insert(transform.ease_to_fn(
@@ -274,7 +311,7 @@ pub fn end_of_round_system(
             },
             EaseFunction::QuadraticOut,
             EasingType::Once {
-                duration: std::time::Duration::from_secs_f32(0.5),
+                duration: Duration::from_secs_f32(0.5),
             },
         ));
     }
@@ -288,9 +325,11 @@ pub fn end_of_round_system(
     }
 }
 
-pub fn on_exit_shop(mut player: Single<&mut Player>) {
+pub fn on_exit_shop(mut commands: Commands, mut player: Single<&mut Player>) {
     player.current_level += 1;
     player.point_for_next_level = Player::points_for_level(player.current_level);
+    commands.trigger(RequestToPlaceCoins::new(5));
+
     info!(
         "We are exiting the shop level: {}, points: {}",
         player.current_level, player.point_for_next_level
@@ -354,9 +393,11 @@ pub fn on_click_on_shop_card_system(
             duration: Duration::from_secs_f32(1.0),
         },
     );
-    commands
-        .entity(trigger.target())
-        .insert((transform_ease, Forbidden));
+    commands.entity(trigger.target()).insert((
+        transform_ease,
+        Forbidden,
+        observers![on_finish_easing_destroy],
+    ));
     commands.entity(trigger.target()).remove::<Collider>();
 
     match card.card_type {
@@ -365,6 +406,62 @@ pub fn on_click_on_shop_card_system(
         _ => {
             player.discard_pile.push(card.card_type);
             player.reshuffle_deck(&mut rng);
+        }
+    }
+}
+
+pub fn decay_over_time_system(
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut DecayOverTime, Option<&mut ShapeFill>)>,
+    mut commands: Commands,
+) {
+    for (entity, mut decay_over_time, mut shape_fill) in query.iter_mut() {
+        decay_over_time.timer.tick(time.delta());
+
+        if let Some(shape_fill) = shape_fill.as_mut() {
+            shape_fill
+                .color
+                .set_alpha(1.0 - decay_over_time.timer.fraction())
+        }
+
+        if decay_over_time.timer.finished() {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+pub fn on_place_coins_request_system(
+    trigger: Trigger<RequestToPlaceCoins>,
+    mut commands: Commands,
+    game_resources: Res<GameResources>,
+    mut rng: GlobalEntropy<WyRand>,
+    spatial_query: SpatialQuery,
+) {
+    let mut spawned_coins = 0;
+    let mut mask = LayerMask::ALL;
+    mask.remove(GameLayer::GadgetFieldsLayer);
+    let filter = SpatialQueryFilter::from_mask(mask);
+    for _ in 0..100 {
+        let position = game_resources.get_random_position_in_play_area(&mut rng);
+        let intersections = spatial_query.shape_intersections(
+            &CollectibleType::CoinType.collider(),
+            position,
+            0.0,
+            &filter,
+        );
+
+        if !intersections.is_empty() {
+            continue;
+        }
+
+        commands.spawn((
+            CollectibleType::coin_bundle(),
+            Transform::from_translation(position.extend(0.0)),
+        ));
+        spawned_coins += 1;
+
+        if spawned_coins >= trigger.amount {
+            break;
         }
     }
 }

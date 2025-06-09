@@ -30,13 +30,8 @@ pub fn experiments_setup(
 ) {
     for entity in query.iter() {
         info!("destroying something");
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
-    // info!("Experiments setup");
-    // commands.spawn((
-    //     ExperimentSetupDestroyOnReload,
-    //     Transform::from_xyz(-200.0, 50.0, 10.0),
-    //     ShopCard::new(ShopCardType::SquareBlockCard),
-    // ));
+
 
 }

@@ -18,6 +18,7 @@ pub enum AppState {
 pub enum LevelState {
     #[default]
     LevelStart,
+    WidgetSelection,
     PlaceWidget,
     ShootBall,
     BallBouncing,

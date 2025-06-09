@@ -1,4 +1,6 @@
 use std::ops::Deref;
+use std::time::Duration;
+use avian2d::prelude::PhysicsLayer;
 use bevy::ecs::component::HookContext;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
@@ -32,4 +34,26 @@ impl Deref for SpriteVisual {
     fn deref(&self) -> &Self::Target {
         &self.0[0]
     }
+}
+
+#[derive(Component, Debug)]
+pub struct DecayOverTime{
+    pub timer: Timer
+}
+
+impl DecayOverTime {
+    pub fn new(life_time: f32) -> Self {
+        Self{
+            timer: Timer::new(Duration::from_secs_f32(life_time), TimerMode::Once)
+        }
+    }
+}
+
+#[derive(PhysicsLayer, Default)]
+pub enum GameLayer {
+    #[default]
+    DefaultLayer,
+    PlayerBallLayer,
+    GadgetsLayer,
+    GadgetFieldsLayer,
 }

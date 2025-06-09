@@ -1,16 +1,17 @@
 use crate::gadgets::systems::on_finish_easing_destroy;
 use bevy::color::palettes::tailwind;
 use bevy::ecs::component::HookContext;
-use bevy::ecs::world;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
 use bevy_bundled_observers::observers;
 use bevy_easings::{Ease, EaseFunction, EaseMethod, EasingType};
 use std::time::Duration;
-use bevy::color::palettes::basic::WHITE;
 
 #[derive(Component, Reflect, Clone, Debug)]
 pub struct UiPointsText;
+
+#[derive(Component, Reflect, Clone, Debug)]
+pub struct UiLastRoundPointsText;
 
 #[derive(Component, Reflect, Clone, Debug)]
 pub struct UiCoinsText;
@@ -27,6 +28,12 @@ pub struct UiPointsForNextLevel;
 
 #[derive(Component)]
 pub struct UiWidgetSelectionRoot;
+
+#[derive(Component)]
+pub struct UiClickOnCannonText;
+
+#[derive(Component)]
+pub struct UiCardPriceText;
 
 #[derive(Component)]
 pub struct Forbidden;

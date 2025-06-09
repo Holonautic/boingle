@@ -1,21 +1,17 @@
+use crate::cards::components::*;
 use crate::gadgets::components::*;
 use crate::gadgets::resources::GameResources;
-use crate::gameplay::events::OnGadgetCardSelected;
+use crate::game_ui::components::UiClickOnCannonText;
 use crate::gameplay::game_states::LevelState;
 use avian2d::prelude::*;
-use bevy::color::palettes::tailwind;
 use bevy::ecs::component::HookContext;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
-use bevy::sprite::Anchor;
-use bevy::text::TextBounds;
 use bevy_bundled_observers::observers;
 use bevy_rand::prelude::*;
-use bevy_vector_shapes::prelude::*;
 use rand::prelude::SliceRandom;
 use std::f32::consts::TAU;
 use std::time::Duration;
-use crate::cards::components::{ShopCard, ShopCardType};
 
 #[derive(Component, Debug, Reflect, Default)]
 pub struct Player {
@@ -25,6 +21,7 @@ pub struct Player {
     pub discard_pile: Vec<ShopCardType>,
     starter_deck: Vec<ShopCardType>,
     pub points: usize,
+    pub points_this_round: usize,
     pub points_last_round: usize,
     pub coins: usize,
     pub balls_left: usize,
@@ -39,14 +36,15 @@ impl Player {
             ShopCardType::WideBlockCard,
             ShopCardType::WideBlockCard,
             ShopCardType::WideBlockCard,
-            ShopCardType::WideBlockCard,
-            ShopCardType::SquareBlockCard,
-            ShopCardType::SquareBlockCard,
-            ShopCardType::SquareBlockCard,
-            ShopCardType::SquareBlockCard,
-            ShopCardType::BumperCard,
-            ShopCardType::BumperCard,
-            ShopCardType::CoinBumperCard,
+            ShopCardType::GravityReverserCard,
+            // ShopCardType::WideBlockCard,
+            // ShopCardType::SquareBlockCard,
+            // ShopCardType::SquareBlockCard,
+            // ShopCardType::SquareBlockCard,
+            // ShopCardType::SquareBlockCard,
+            // ShopCardType::BumperCard,
+            // ShopCardType::BumperCard,
+            // ShopCardType::CoinBumperCard,
         ];
         let mut widget_deck = starter_deck.clone();
         widget_deck.shuffle(rng);
@@ -92,6 +90,7 @@ impl Player {
         self.balls_left = self.balls_per_level;
         self.current_level = 0;
         self.points_last_round = 0;
+        self.point_for_next_level = 0;
         self.point_for_next_level = Player::points_for_level(0);
 
         self.widget_deck = self.starter_deck.clone();
@@ -119,6 +118,7 @@ pub struct BallSpawnPoint;
 
 #[derive(Component, Debug, Reflect)]
 #[require(Transform, Visibility)]
+#[require(Name::new("Cannon"))]
 #[component(on_insert=BallCannon::on_ball_cannon_added)]
 pub struct BallCannon {
     pub power: f32,
@@ -139,15 +139,33 @@ impl Default for BallCannon {
 }
 impl BallCannon {
     fn on_ball_cannon_added(mut world: DeferredWorld, context: HookContext) {
+        let cannon_transform = world.get::<Transform>(context.entity).unwrap().clone();
+
+        world.commands().spawn((
+            UiClickOnCannonText,
+            ChildOf(context.entity),
+            Transform::from_translation(
+                cannon_transform.rotation.inverse() * Vec3::new(10.0, -50.0, 0.0),
+            )
+                .with_rotation(cannon_transform.rotation.inverse()),
+            Text2d("Click to Fire!".to_string()),
+            TextFont {
+                font_size: 14.0,
+                ..default()
+            },
+            Visibility::Hidden,
+        ));
+
         world.commands().queue(move |world: &mut World| {
             let game_resources = world.get_resource::<GameResources>().unwrap();
-            let image = game_resources.gadget_images[&GadgetType::BallCannon].clone();
+            let image = game_resources.gadget_images[&GadgetType::BallCannonType].clone();
             world.commands().spawn((
                 ChildOf(context.entity),
                 Transform::from_scale(Vec3::splat(0.25))
                     .with_rotation(Quat::from_rotation_z(TAU * 0.5)),
                 Sprite::from_image(image),
             ));
+
         });
     }
 

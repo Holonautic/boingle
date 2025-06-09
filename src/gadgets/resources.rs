@@ -13,6 +13,8 @@ pub struct GameResources {
     pub collectibles_images: HashMap<CollectibleType, Handle<Image>>,
     pub play_area: Vec2,
     pub ball_image: Handle<Image>,
+    pub additional_ball_image: Handle<Image>,
+    pub reverse_gravity_image: Handle<Image>,
 
     pub balls_per_level: usize,
     pub gadgets: HashMap<ShopCardType, Gadget>,
@@ -27,31 +29,35 @@ impl GameResources {
         self.play_area = Vec2::new(450.0, 250.0);
 
         self.gadget_images.insert(
-            GadgetType::Bumper,
+            GadgetType::BumperType,
             asset_server.load("sprites/bumper_points.png"),
         );
         self.gadget_images.insert(
-            GadgetType::SquareBlock,
+            GadgetType::SquareBlockType,
             asset_server.load("sprites/block_square.png"),
         );
         self.gadget_images.insert(
-            GadgetType::WideBlock,
+            GadgetType::WideBlockType,
             asset_server.load("sprites/block_square.png"),
         );
 
         self.gadget_images.insert(
-            GadgetType::CoinBumper,
+            GadgetType::CoinBumperType,
             asset_server.load("sprites/bumper_coins.png"),
         );
         self.gadget_images.insert(
-            GadgetType::BallCannon,
+            GadgetType::BallCannonType,
             asset_server.load("sprites/cannon.png"),
         );
 
         self.collectibles_images
             .insert(CollectibleType::CoinType, asset_server.load("sprites/coin.png"));
+        
 
         self.ball_image = asset_server.load("sprites/ball_1.png");
+        self.additional_ball_image = asset_server.load("sprites/additional_ball.png");
+        self.reverse_gravity_image = asset_server.load("sprites/gravity_reverse.png");
+
 
         self.fill_gadgets();
         self.fill_points_for_card();
@@ -156,44 +162,7 @@ impl GameResources {
         }
     }
 
-    pub fn card_sprite(&self, gadget_type: &GadgetType) -> Sprite {
-        let slice_border = 30.0;
-        let image_mode = SpriteImageMode::Sliced(TextureSlicer {
-            border: BorderRect::all(slice_border),
-            center_scale_mode: SliceScaleMode::Stretch,
-            ..default()
-        });
-        let default_size = 50.0;
-        let image = self.gadget_images[gadget_type].clone();
-        match gadget_type {
-            GadgetType::SquareBlock => Sprite {
-                image,
-                image_mode,
-                custom_size: Some(Vec2::new(default_size, default_size)),
-                ..default()
-            },
-            GadgetType::WideBlock => Sprite {
-                image,
-                image_mode,
-                custom_size: Some(Vec2::new(80.0, 40.0)),
 
-                ..default()
-            },
-            GadgetType::Bumper => Sprite {
-                image,
-                custom_size: Some(Vec2::new(default_size, default_size)),
-
-                ..default()
-            },
-            GadgetType::CoinBumper => Sprite {
-                image,
-                custom_size: Some(Vec2::new(default_size, default_size)),
-
-                ..default()
-            },
-            GadgetType::BallCannon => Sprite { image, ..default() },
-        }
-    }
 
     pub fn get_shop_cards_for_level(
         &self,
@@ -214,24 +183,33 @@ impl GameResources {
         cards
     }
     pub fn fill_shop_items(&mut self) {
-
-
+        // Level 1
         self.shop_items_per_level.push(vec![
             ShopCardType::OneMoreBallCard,
             ShopCardType::BumperCard,
             ShopCardType::CoinBumperCard,
         ]);
+        // Level 2
         self.shop_items_per_level.push(vec![
             ShopCardType::OneMoreBallCard,
             ShopCardType::BumperCard,
             ShopCardType::CoinBumperCard,
             ShopCardType::WideBlockCard,
         ]);
+        // Level 3
         self.shop_items_per_level.push(vec![
             ShopCardType::OneMoreBallCard,
             ShopCardType::BumperCard,
             ShopCardType::CoinBumperCard,
             ShopCardType::WideBlockCard,
+            ShopCardType::GravityReverserCard,
+        ]);
+        self.shop_items_per_level.push(vec![
+            ShopCardType::OneMoreBallCard,
+            ShopCardType::BumperCard,
+            ShopCardType::CoinBumperCard,
+            ShopCardType::WideBlockCard,
+            ShopCardType::GravityReverserCard,
         ]);
     }
 
@@ -241,12 +219,12 @@ impl GameResources {
             ShopCardType::MoreBallsCard => 0,
             ShopCardType::SquareBlockCard => 1,
             ShopCardType::WideBlockCard => 1,
-            ShopCardType::BumperCard => 2,
-            ShopCardType::CoinBumperCard => 5,
+            ShopCardType::BumperCard => 5,
+            ShopCardType::CoinBumperCard => 15,
             ShopCardType::HighFrictionBlockCard => 4,
             ShopCardType::MagnetCard => 9,
             ShopCardType::ReactivateLaserBridgeCard => 25,
-            ShopCardType::GravityReverserCard => 12,
+            ShopCardType::GravityReverserCard => 25,
             ShopCardType::MultiBallCard => 35,
             ShopCardType::RecycleGadgetCard => 15,
             ShopCardType::RearrangeGadgetCard => 8,

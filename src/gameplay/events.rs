@@ -37,3 +37,15 @@ impl OnGadgetCardSelected {
 
 #[derive(Event, Reflect, Debug)]
 pub struct OnCoinCollected;
+
+
+#[derive(Event, Reflect, Debug)]
+pub struct RequestToPlaceCoins {
+    pub amount: usize,
+}
+
+impl RequestToPlaceCoins {
+    pub fn new(amount: usize) -> Self {
+        Self { amount }
+    }
+}

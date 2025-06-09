@@ -36,10 +36,11 @@ pub enum ShopCardType {
 impl ShopCardType {
     pub fn get_gadget_type(&self) -> Option<GadgetType> {
         match self {
-            ShopCardType::SquareBlockCard => Some(GadgetType::SquareBlock),
-            ShopCardType::WideBlockCard => Some(GadgetType::WideBlock),
-            ShopCardType::BumperCard => Some(GadgetType::Bumper),
-            ShopCardType::CoinBumperCard => Some(GadgetType::CoinBumper),
+            ShopCardType::SquareBlockCard => Some(GadgetType::SquareBlockType),
+            ShopCardType::WideBlockCard => Some(GadgetType::WideBlockType),
+            ShopCardType::BumperCard => Some(GadgetType::BumperType),
+            ShopCardType::CoinBumperCard => Some(GadgetType::CoinBumperType),
+            ShopCardType::GravityReverserCard => Some(GadgetType::GravityReverseType),
             _ => None,
         }
     }
@@ -168,8 +169,22 @@ impl CardIcon {
         let default_size = 50.0;
 
         match icon.0 {
-            ShopCardType::OneMoreBallCard => {}
-            ShopCardType::MoreBallsCard => {}
+            ShopCardType::OneMoreBallCard => {
+                let image = game_resources.additional_ball_image.clone();
+                world.commands().entity(context.entity).insert((Sprite {
+                    image,
+                    custom_size: Some(Vec2::new(default_size, default_size)),
+                    ..default()
+                },));
+            }
+            ShopCardType::MoreBallsCard => {
+                let image = game_resources.additional_ball_image.clone();
+                world.commands().entity(context.entity).insert((Sprite {
+                    image,
+                    custom_size: Some(Vec2::new(default_size, default_size)),
+                    ..default()
+                },));
+            }
             ShopCardType::SquareBlockCard { .. } => {
                 let slice_border = 30.0;
                 let image_mode = SpriteImageMode::Sliced(TextureSlicer {
@@ -177,7 +192,7 @@ impl CardIcon {
                     center_scale_mode: SliceScaleMode::Stretch,
                     ..default()
                 });
-                let image = game_resources.gadget_images[&GadgetType::SquareBlock].clone();
+                let image = game_resources.gadget_images[&GadgetType::SquareBlockType].clone();
                 world.commands().entity(context.entity).insert((Sprite {
                     image,
                     image_mode,
@@ -193,7 +208,7 @@ impl CardIcon {
                     center_scale_mode: SliceScaleMode::Stretch,
                     ..default()
                 });
-                let image = game_resources.gadget_images[&GadgetType::WideBlock].clone();
+                let image = game_resources.gadget_images[&GadgetType::WideBlockType].clone();
                 world.commands().entity(context.entity).insert((Sprite {
                     image,
                     image_mode,
@@ -202,7 +217,7 @@ impl CardIcon {
                 },));
             }
             ShopCardType::BumperCard { .. } => {
-                let image = game_resources.gadget_images[&GadgetType::Bumper].clone();
+                let image = game_resources.gadget_images[&GadgetType::BumperType].clone();
                 world.commands().entity(context.entity).insert((Sprite {
                     image,
                     custom_size: Some(Vec2::new(default_size, default_size)),
@@ -210,7 +225,7 @@ impl CardIcon {
                 },));
             }
             ShopCardType::CoinBumperCard { .. } => {
-                let image = game_resources.gadget_images[&GadgetType::CoinBumper].clone();
+                let image = game_resources.gadget_images[&GadgetType::CoinBumperType].clone();
                 world.commands().entity(context.entity).insert((Sprite {
                     image,
                     custom_size: Some(Vec2::new(default_size, default_size)),
@@ -218,9 +233,16 @@ impl CardIcon {
                 },));
             }
             ShopCardType::HighFrictionBlockCard => {}
-            ShopCardType::MagnetCard { .. } => {}
+            ShopCardType::MagnetCard => {}
             ShopCardType::ReactivateLaserBridgeCard => {}
-            ShopCardType::GravityReverserCard => {}
+            ShopCardType::GravityReverserCard => {
+                let image = game_resources.reverse_gravity_image.clone();
+                world.commands().entity(context.entity).insert((Sprite {
+                    image,
+                    custom_size: Some(Vec2::new(default_size, default_size)),
+                    ..default()
+                },));
+            }
             ShopCardType::MultiBallCard => {}
             ShopCardType::RecycleGadgetCard => {}
             ShopCardType::RearrangeGadgetCard => {}

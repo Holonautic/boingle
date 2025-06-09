@@ -6,7 +6,7 @@ mod gameplay;
 mod general;
 
 use crate::experiments::ExperimentsPlugin;
-use crate::gadgets::components::{Block, GadgetType, SquareBlock, WideBlock};
+use crate::gadgets::components::{Block, GadgetType, GravityReverseField, SquareBlock, WideBlock};
 use crate::gadgets::resources::GameResources;
 use crate::game_ui::GameUiPlugin;
 use crate::gameplay::GameplayPlugin;
@@ -58,8 +58,8 @@ fn main() -> AppExit {
     app.add_plugins(Shape2dPlugin::default());
     app.add_plugins(PhysicsPlugins::default());
     app.add_plugins(PhysicsPickingPlugin::default());
-    // app.add_plugins(PhysicsDebugPlugin::default());
-    // app.add_plugins(WorldInspectorPlugin::new());
+    app.add_plugins(PhysicsDebugPlugin::default());
+    app.add_plugins(WorldInspectorPlugin::new());
     app.add_plugins(EasingsPlugin::default());
     app.insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0));
     app.insert_resource(GameResources::default());
@@ -107,7 +107,7 @@ pub fn main_game_setup(
     game_resources: Res<GameResources>,
 ) {
     for entity in previous_setup.iter() {
-        commands.entity(entity).despawn();
+        commands.entity(entity).try_despawn();
     }
 
     let x_position = game_resources.play_area.x - 0.0;
@@ -126,6 +126,7 @@ pub fn main_game_setup(
         Transform::from_xyz(x_position, y_position, 0.0)
             .with_rotation(Quat::from_rotation_z(f32::to_radians(angle))),
     ));
+    
 }
 
 #[hot]
