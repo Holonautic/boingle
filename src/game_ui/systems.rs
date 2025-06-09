@@ -1,4 +1,4 @@
-use crate::cards::components::{OnClickOnShopCard, ShopCard, ShopCardType};
+use crate::cards::components::{OnClickOnShopCard, ShopCard};
 use crate::gadgets::resources::GameResources;
 use crate::game_ui::components::*;
 use crate::gameplay::components::*;
@@ -11,7 +11,6 @@ use bevy_bundled_observers::observers;
 use bevy_rand::global::GlobalEntropy;
 use bevy_rand::prelude::WyRand;
 use bevy_simple_subsecond_system::hot;
-use num_format::{Locale, ToFormattedString};
 use rand::prelude::*;
 
 #[derive(Component)]
@@ -385,7 +384,6 @@ pub fn show_widget_selection(
         ));
         x_position += 300.0;
     }
-    let last_round_points_formatted = player.points_last_round.to_formatted_string(&Locale::en);
 
     let font_size = 20.0;
 
@@ -517,7 +515,6 @@ pub fn show_shop_ui(
         }
         position_x += 200.0
     }
-    let font_size = 30.0;
     let font_color = Color::from(tailwind::RED_300);
 
     commands.spawn((
@@ -633,7 +630,7 @@ pub fn update_shop_ui(
 
 pub fn on_entering_shoot_ball_state(
     mut commands: Commands,
-    click_on_cannon_text: Single<Entity, (With<UiClickOnCannonText>)>,
+    click_on_cannon_text: Single<Entity, With<UiClickOnCannonText>>,
 ) {
     let entity = click_on_cannon_text.into_inner();
     commands.entity(entity).insert(Visibility::Inherited);

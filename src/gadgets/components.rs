@@ -8,7 +8,6 @@ use bevy::ecs::component::HookContext;
 use bevy::ecs::world::DeferredWorld;
 use bevy::prelude::*;
 use bevy_bundled_observers::observers;
-use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
 #[derive(Component, Debug, Clone, Reflect, Hash, PartialEq, Eq, Copy)]
@@ -22,7 +21,7 @@ pub enum GadgetType {
 }
 
 impl GadgetType {
-    pub fn spawn_widget(&self, commands: &mut Commands, asset_resource: &GameResources) -> Entity {
+    pub fn spawn_widget(&self, commands: &mut Commands) -> Entity {
         match self {
             GadgetType::SquareBlockType => commands
                 .spawn((SquareBlock, Gadget::new(5), PointsOnHit::new(1)))

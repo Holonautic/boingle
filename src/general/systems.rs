@@ -2,7 +2,6 @@ use crate::general::components::*;
 use crate::general::resources::GameCursor;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use bevy_vector_shapes::shapes::ShapeFill;
 
 pub(super) fn detect_cursor_position(
     mut game_cursor: ResMut<GameCursor>,

@@ -1,10 +1,9 @@
 use crate::cards::components::*;
 use crate::gadgets::components::*;
-use crate::gameplay::components::GadgetCard;
 use bevy::prelude::*;
 use bevy_rand::prelude::{Entropy, WyRand};
 use rand::seq::IteratorRandom;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use rand::Rng;
 
 #[derive(Resource, Default)]

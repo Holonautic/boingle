@@ -1,5 +1,4 @@
 use crate::gadgets::components::*;
-use crate::gadgets::resources::*;
 use crate::game_ui::components::FloatingScore;
 use crate::gameplay::components::*;
 use crate::general::components::SpriteVisual;
@@ -14,7 +13,6 @@ use bevy_simple_subsecond_system::hot;
 use bevy_vector_shapes::prelude::*;
 use rand::Rng;
 use std::time::Duration;
-use bevy::ecs::system::command::trigger;
 use crate::gameplay::events::RequestToPlaceCoins;
 
 #[hot]

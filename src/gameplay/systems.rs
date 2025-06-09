@@ -1,5 +1,4 @@
 use crate::cards::components::*;
-use crate::gadgets::components::CollectibleType::CoinType;
 use crate::gadgets::components::*;
 use crate::gadgets::resources::GameResources;
 use crate::gadgets::systems::on_finish_easing_destroy;
@@ -150,7 +149,6 @@ pub fn on_gadget_card_selected(
     mut commands: Commands,
     shop_cards_query: Query<Entity, With<ShopCard>>,
     mut player: Single<&mut Player>,
-    gadget_image_resource: Res<GameResources>,
     mut next_state: ResMut<NextState<LevelState>>,
 ) {
     for entity in shop_cards_query.iter() {
@@ -161,7 +159,7 @@ pub fn on_gadget_card_selected(
         .shop_card_type
         .get_gadget_type()
         .unwrap()
-        .spawn_widget(&mut commands, &gadget_image_resource);
+        .spawn_widget(&mut commands);
     commands.entity(gadget_entity).insert(Preview);
     player.current_widget = Some(gadget_entity);
     let index = player
@@ -240,7 +238,6 @@ pub fn restarting_level(
     cannon_query: Single<(&BallCannon, &Transform)>,
     mut player: Single<&mut Player>,
     mut rng: GlobalEntropy<WyRand>,
-    game_resources: Res<GameResources>,
 ) {
     for entity in collectible_query.iter() {
         commands.entity(entity).try_despawn();
@@ -342,11 +339,10 @@ pub fn destroy_when_standing_still_system(
     mut query: Query<(
         Entity,
         &Transform,
-        &LinearVelocity,
         &mut DestroyOnStandingStill,
     )>,
 ) {
-    for (entity, transform, still, mut destroy) in query.iter_mut() {
+    for (entity, transform, mut destroy) in query.iter_mut() {
         let Some(last_position) = destroy.last_position else {
             destroy.last_position = Some(transform.translation);
             continue;

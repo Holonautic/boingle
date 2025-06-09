@@ -6,7 +6,6 @@ mod gameplay;
 mod general;
 
 use crate::experiments::ExperimentsPlugin;
-use crate::gadgets::components::{Block, GadgetType, GravityReverseField, SquareBlock, WideBlock};
 use crate::gadgets::resources::GameResources;
 use crate::game_ui::GameUiPlugin;
 use crate::gameplay::GameplayPlugin;
@@ -20,13 +19,11 @@ use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy_easings::EasingsPlugin;
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rand::prelude::*;
 use bevy_simple_subsecond_system::prelude::*;
 use bevy_vector_shapes::Shape2dPlugin;
 use gameplay::game_states::*;
 use rand::Rng;
-use std::f32::consts::TAU;
 
 fn main() -> AppExit {
     let mut app = App::new();

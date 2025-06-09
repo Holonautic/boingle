@@ -337,17 +337,3 @@ impl DestroyOnStandingStill {
         }
     }
 }
-
-#[derive(Resource)]
-pub struct CardCatalog {}
-
-impl CardCatalog {
-    pub fn cards_for_level(level: usize) -> Vec<GadgetCard> {
-        // match level {
-        //     1 => vec![GadgetType::Bumper, GadgetType::CoinBumper, ]
-        //
-        // }
-        //
-        vec![]
-    }
-}

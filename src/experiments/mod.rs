@@ -1,5 +1,5 @@
-use crate::cards::components::{ShopCard, ShopCardType};
-use crate::gameplay::game_states::{AppState, LevelState};
+use crate::cards::components::ShopCardType;
+use crate::gameplay::game_states::AppState;
 use bevy::prelude::*;
 use bevy_simple_subsecond_system::hot;
 
