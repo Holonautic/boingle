@@ -7,6 +7,10 @@ use bevy_bundled_observers::observers;
 use bevy_easings::{Ease, EaseFunction, EaseMethod, EasingType};
 use std::time::Duration;
 
+
+pub const NORMAL_BUTTON: Color = Color::srgb(0.231, 0.51, 0.965);
+pub const HOVERED_BUTTON: Color = Color::srgb(0.145, 0.349, 0.843);
+pub const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
 #[derive(Component, Reflect, Clone, Debug)]
 pub struct UiPointsText;
 
@@ -34,6 +38,9 @@ pub struct UiClickOnCannonText;
 
 #[derive(Component)]
 pub struct UiCardPriceText;
+
+#[derive(Component)]
+pub struct UiMainMenu;
 
 #[derive(Component)]
 pub struct Forbidden;

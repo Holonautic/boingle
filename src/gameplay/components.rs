@@ -36,15 +36,14 @@ impl Player {
             ShopCardType::WideBlockCard,
             ShopCardType::WideBlockCard,
             ShopCardType::WideBlockCard,
-            ShopCardType::GravityReverserCard,
-            // ShopCardType::WideBlockCard,
-            // ShopCardType::SquareBlockCard,
-            // ShopCardType::SquareBlockCard,
-            // ShopCardType::SquareBlockCard,
-            // ShopCardType::SquareBlockCard,
-            // ShopCardType::BumperCard,
-            // ShopCardType::BumperCard,
-            // ShopCardType::CoinBumperCard,
+            ShopCardType::WideBlockCard,
+            ShopCardType::SquareBlockCard,
+            ShopCardType::SquareBlockCard,
+            ShopCardType::SquareBlockCard,
+            ShopCardType::SquareBlockCard,
+            ShopCardType::BumperCard,
+            ShopCardType::BumperCard,
+            ShopCardType::CoinBumperCard,
         ];
         let mut widget_deck = starter_deck.clone();
         widget_deck.shuffle(rng);

@@ -3,16 +3,16 @@ use crate::gadgets::resources::GameResources;
 use crate::game_ui::components::*;
 use crate::gameplay::components::*;
 use crate::gameplay::events::OnGadgetCardSelected;
-use crate::gameplay::game_states::LevelState;
+use crate::gameplay::game_states::{AppState, LevelState, MenuState};
 use bevy::color::palettes::tailwind;
 use bevy::prelude::*;
+use bevy_bundled_observers::bevy_ecs::spawn::SpawnIter;
 use bevy_bundled_observers::observers;
 use bevy_rand::global::GlobalEntropy;
 use bevy_rand::prelude::WyRand;
 use bevy_simple_subsecond_system::hot;
 use num_format::{Locale, ToFormattedString};
 use rand::prelude::*;
-use crate::game_ui::widgets::*;
 
 #[derive(Component)]
 struct DestroyOnHot;
@@ -256,8 +256,6 @@ pub fn update_ui(
     set.p5().0 = format!("{}", player.points_last_round);
 }
 
-
-
 #[hot(rerun_on_hot_patch = true)]
 pub fn spawn_level_over_ui(
     mut commands: Commands,
@@ -436,7 +434,7 @@ pub fn show_widget_selection(
         "You can use the mouse wheel to rotate some gadgets",
         "You can use the 'R' Key top rotate some gadgets",
         "The shop will always offer you a few free balls",
-        "You can always destroy the balls by clicking on the cannon"
+        "You can always destroy the balls by clicking on the cannon",
     ];
 
     let tip = tips.choose(&mut rng).unwrap();
@@ -448,15 +446,13 @@ pub fn show_widget_selection(
             column_gap: Val::Px(4.0),
             ..default()
         },
-        children![
-            (
-                Text::new(format!("Tip: {}", tip)),
-                TextFont {
-                    font_size,
-                    ..default()
-                }
-            ),
-        ],
+        children![(
+            Text::new(format!("Tip: {}", tip)),
+            TextFont {
+                font_size,
+                ..default()
+            }
+        ),],
     ));
 }
 
@@ -652,5 +648,175 @@ pub fn on_exit_shoot_ball_state(
 }
 
 #[hot]
-pub fn show_menu_ui() {
+pub fn show_menu_ui(mut commands: Commands, previous_query: Query<Entity, With<UiMainMenu>>) {
+    for entity in previous_query.iter() {
+        commands.entity(entity).despawn();
+    }
+    commands.spawn((
+        UiMainMenu,
+        Pickable::IGNORE,
+        StateScoped(MenuState::MainMenu),
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(20.0),
+            column_gap: Val::Px(20.0),
+            ..default()
+        },
+        children![
+            (header("Boingle"), TextShadow::default(),),
+            (
+                Node {
+                    width: Val::Px(300.0),
+                    ..default()
+                },
+                Text(
+                    "Build chaotic pinball contraptions \
+                where every ball sparks a chain reaction \
+                of bounces, points and coins!"
+                        .to_string()
+                ),
+                TextLayout::new_with_justify(JustifyText::Justified),
+                TextFont {
+                    font_size: 12.0,
+                    ..default()
+                },
+            ),
+            (
+                button_bundle("Start Game"),
+                observers![
+                    |_: Trigger<Pointer<Click>>, mut next_state: ResMut<NextState<AppState>>| {
+                        next_state.set(AppState::InGame);
+                    }
+                ]
+            ),
+            (
+                button_bundle("Credits"),
+                observers![
+                    |_: Trigger<Pointer<Click>>, mut next_state: ResMut<NextState<MenuState>>| {
+                        next_state.set(MenuState::CreditsMenu);
+                    }
+                ]
+            ),
+        ],
+    ));
+}
+
+pub fn show_credits(mut commands: Commands) {
+    commands.spawn((
+        Pickable::IGNORE,
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
+            align_items: AlignItems::Center,
+            justify_content: JustifyContent::Center,
+            flex_direction: FlexDirection::Column,
+            row_gap: Val::Px(20.0),
+            column_gap: Val::Px(20.0),
+            ..default()
+        },
+        GlobalZIndex(2),
+        StateScoped(MenuState::CreditsMenu),
+        children![
+            header("Created by"),
+            created_by(),
+            header("Assets"),
+            assets(),
+            (
+                button_bundle("Back"),
+                observers![
+                    |_: Trigger<Pointer<Click>>, mut next_state: ResMut<NextState<MenuState>>| {
+                        next_state.set(MenuState::MainMenu)
+                    }
+                ]
+            )
+        ],
+    ));
+}
+
+pub fn header(text: impl Into<String>) -> impl Bundle {
+    (
+        Name::new("Header"),
+        Text(text.into()),
+        TextFont::from_font_size(40.0),
+    )
+}
+fn assets() -> impl Bundle {
+    grid(vec![[
+        "Bevy logo",
+        "All rights reserved by the Bevy Foundation, permission granted for splash screen use when unmodified",
+    ]])
+}
+
+fn created_by() -> impl Bundle {
+    grid(vec![
+        ["Phil", "Game Idea, Inspiration, Game Design"],
+        ["Roger", "Developer, Game Design"],
+        ["Emma", "Art"],
+        [
+            "Bevy Community",
+            "Creating amazing engine and help solving all issues",
+        ],
+    ])
+}
+
+fn grid(content: Vec<[&'static str; 2]>) -> impl Bundle {
+    (
+        Name::new("Grid"),
+        Node {
+            display: Display::Grid,
+            row_gap: Val::Px(10.0),
+            column_gap: Val::Px(30.0),
+            grid_template_columns: RepeatedGridTrack::px(2, 400.0),
+            ..default()
+        },
+        Children::spawn(SpawnIter(content.into_iter().flatten().enumerate().map(
+            |(i, text)| {
+                (
+                    Text(text.to_string()),
+                    Node {
+                        justify_self: if i % 2 == 0 {
+                            JustifySelf::End
+                        } else {
+                            JustifySelf::Start
+                        },
+                        ..default()
+                    },
+                )
+            },
+        ))),
+    )
+}
+
+#[hot]
+fn button_bundle(title: impl Into<String>) -> impl Bundle {
+    (
+        Button,
+        Node {
+            width: Val::Px(150.0),
+            height: Val::Px(65.0),
+            border: UiRect::all(Val::Px(5.0)),
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        BorderColor(Color::BLACK),
+        BorderRadius::MAX,
+        BackgroundColor(NORMAL_BUTTON),
+        children![
+            Text::new(title),
+            TextFont {
+                font_size: 33.0,
+                ..default()
+            },
+            TextColor(Color::srgb(0.9, 0.9, 0.9)),
+            TextShadow {
+                offset: Vec2::new(2.0, 2.0),
+                ..default()
+            },
+        ],
+    )
 }

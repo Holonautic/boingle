@@ -58,8 +58,8 @@ fn main() -> AppExit {
     app.add_plugins(Shape2dPlugin::default());
     app.add_plugins(PhysicsPlugins::default());
     app.add_plugins(PhysicsPickingPlugin::default());
-    app.add_plugins(PhysicsDebugPlugin::default());
-    app.add_plugins(WorldInspectorPlugin::new());
+    // app.add_plugins(PhysicsDebugPlugin::default());
+    // app.add_plugins(WorldInspectorPlugin::new());
     app.add_plugins(EasingsPlugin::default());
     app.insert_resource(Gravity(Vector::NEG_Y * 9.81 * 100.0));
     app.insert_resource(GameResources::default());
@@ -72,6 +72,7 @@ fn main() -> AppExit {
     //game states
     app.insert_state(AppState::Loading);
     app.add_sub_state::<LevelState>();
+    app.add_sub_state::<MenuState>();
 
     app.add_systems(OnEnter(AppState::Loading), load_assets);
     app.add_systems(OnEnter(AppState::Startup), startup_setup);
@@ -96,7 +97,7 @@ pub fn load_assets(
 
 pub fn startup_setup(mut commands: Commands, mut next_state: ResMut<NextState<AppState>>) {
     commands.spawn((Name::new("main camera"), MainCamera, Camera2d));
-    next_state.set(AppState::InGame);
+    next_state.set(AppState::Menu);
 }
 
 #[hot(rerun_on_hot_patch = true)]
@@ -126,7 +127,7 @@ pub fn main_game_setup(
         Transform::from_xyz(x_position, y_position, 0.0)
             .with_rotation(Quat::from_rotation_z(f32::to_radians(angle))),
     ));
-    
+
 }
 
 #[hot]

@@ -26,3 +26,11 @@ pub enum LevelState {
     Shop,
     GameOver,
 }
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, SubStates)]
+#[source(AppState = AppState::Menu)]
+#[states(scoped_entities)]
+pub enum MenuState {
+    #[default]
+    MainMenu,
+    CreditsMenu,
+}
